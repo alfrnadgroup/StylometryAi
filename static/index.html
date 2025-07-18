@@ -8,7 +8,7 @@
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
-      background: linear-gradient(120deg, #f5f7fa, #c3cfe2);
+      background: linear-gradient(to right, #f0f2f5, #c9d6ff);
       color: #333;
       padding: 2rem;
     }
@@ -16,10 +16,10 @@
     header {
       display: flex;
       align-items: center;
-      background-color: #ffffffdd;
+      background-color: #ffffffcc;
       padding: 1rem 2rem;
       border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
       margin-bottom: 2rem;
     }
 
@@ -28,15 +28,20 @@
       margin-right: 20px;
     }
 
-    header h1 {
+    .title-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .title-group h1 {
       font-size: 2rem;
       margin: 0;
       color: #2c3e50;
     }
 
-    header p {
-      margin: 4px 0 0 0;
-      font-size: 1rem;
+    .title-group p {
+      margin: 4px 0 0;
+      font-size: 1.1rem;
       color: #7f8c8d;
     }
 
@@ -50,7 +55,7 @@
       color: white;
       padding: 0.6em 1.2em;
       border: none;
-      border-radius: 5px;
+      border-radius: 6px;
       cursor: pointer;
       transition: background 0.3s ease;
     }
@@ -63,7 +68,7 @@
       margin-top: 2rem;
     }
 
-    img {
+    img.result-img {
       max-width: 100%;
       margin-top: 1rem;
       border-radius: 10px;
@@ -81,18 +86,18 @@
 </head>
 <body>
   <header>
-    <img src="logo.png" alt="Logo" />
-    <div>
+    <img src="/static/logo.png" alt="Logo" />
+    <div class="title-group">
       <h1>Stylometry AI</h1>
       <p>Author Fingerprint</p>
     </div>
   </header>
 
-  <p>Upload two <code>.txt</code> files to analyze and compare writing styles.</p>
+  <p>Upload two <code>.txt</code> files to compare their writing styles using AI stylometry.</p>
 
   <input type="file" id="file1" accept=".txt"><br>
   <input type="file" id="file2" accept=".txt"><br>
-  <button onclick="analyze()">?? Analyze</button>
+  <button onclick="analyze()">🔍 Analyze</button>
 
   <div id="results"></div>
 
@@ -119,22 +124,22 @@
       const data = await response.json();
 
       document.getElementById("results").innerHTML = `
-        <h3>?? Accuracy: ${data.accuracy}%</h3>
+        <h3>📊 Accuracy: ${data.accuracy}%</h3>
         <p><strong>Verdict:</strong> ${data.verdict}</p>
         <pre>${data.report}</pre>
 
-        <h3>?? Feature Fingerprints</h3>
+        <h3>🧬 Feature Fingerprints</h3>
         <p><b>Author 1:</b> ${JSON.stringify(data.fingerprint1)}</p>
         <p><b>Author 2:</b> ${JSON.stringify(data.fingerprint2)}</p>
 
-        <h3>?? PCA Style Cluster</h3>
-        <img src="data:image/png;base64,${data.pca_plot}" />
+        <h3>📉 PCA Style Cluster</h3>
+        <img class="result-img" src="data:image/png;base64,${data.pca_plot}" />
 
-        <h3>?? Fingerprint: Author 1</h3>
-        <img src="data:image/png;base64,${data.fp1_plot}" />
+        <h3>🌀 Fingerprint: Author 1</h3>
+        <img class="result-img" src="data:image/png;base64,${data.fp1_plot}" />
 
-        <h3>?? Fingerprint: Author 2</h3>
-        <img src="data:image/png;base64,${data.fp2_plot}" />
+        <h3>🌀 Fingerprint: Author 2</h3>
+        <img class="result-img" src="data:image/png;base64,${data.fp2_plot}" />
       `;
     }
   </script>
