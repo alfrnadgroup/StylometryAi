@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stylometry AI</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      background: linear-gradient(120deg, #f5f7fa, #c3cfe2);
+      color: #333;
+      padding: 2rem;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      background-color: #ffffffdd;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+
+    header img {
+      height: 60px;
+      margin-right: 20px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      margin: 0;
+      color: #2c3e50;
+    }
+
+    header p {
+      margin: 4px 0 0 0;
+      font-size: 1rem;
+      color: #7f8c8d;
+    }
+
+    input[type="file"], button {
+      margin: 1em 0;
+      font-size: 1rem;
+    }
+
+    button {
+      background: #3498db;
+      color: white;
+      padding: 0.6em 1.2em;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #2980b9;
+    }
+
+    #results {
+      margin-top: 2rem;
+    }
+
+    img {
+      max-width: 100%;
+      margin-top: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    pre {
+      background: #ecf0f1;
+      padding: 1rem;
+      border-radius: 10px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="Logo" />
+    <div>
+      <h1>Stylometry AI</h1>
+      <p>Author Fingerprint</p>
+    </div>
+  </header>
+
+  <p>Upload two <code>.txt</code> files to analyze and compare writing styles.</p>
+
+  <input type="file" id="file1" accept=".txt"><br>
+  <input type="file" id="file2" accept=".txt"><br>
+  <button onclick="analyze()">?? Analyze</button>
+
+  <div id="results"></div>
+
+  <script>
+    async function analyze() {
+      const file1 = document.getElementById("file1").files[0];
+      const file2 = document.getElementById("file2").files[0];
+      if (!file1 || !file2) return alert("Please upload both files.");
+
+      const formData = new FormData();
+      formData.append("author1", file1);
+      formData.append("author2", file2);
+
+      const response = await fetch("/analyze", {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) {
+        alert("Error analyzing the texts.");
+        return;
+      }
+
+      const data = await response.json();
+
+      document.getElementById("results").innerHTML = `
+        <h3>?? Accuracy: ${data.accuracy}%</h3>
+        <p><strong>Verdict:</strong> ${data.verdict}</p>
+        <pre>${data.report}</pre>
+
+        <h3>?? Feature Fingerprints</h3>
+        <p><b>Author 1:</b> ${JSON.stringify(data.fingerprint1)}</p>
+        <p><b>Author 2:</b> ${JSON.stringify(data.fingerprint2)}</p>
+
+        <h3>?? PCA Style Cluster</h3>
+        <img src="data:image/png;base64,${data.pca_plot}" />
+
+        <h3>?? Fingerprint: Author 1</h3>
+        <img src="data:image/png;base64,${data.fp1_plot}" />
+
+        <h3>?? Fingerprint: Author 2</h3>
+        <img src="data:image/png;base64,${data.fp2_plot}" />
+      `;
+    }
+  </script>
+</body>
+</html>
