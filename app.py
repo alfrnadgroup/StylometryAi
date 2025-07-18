@@ -1,5 +1,3 @@
-# app.py
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from style_utils import *
@@ -10,13 +8,10 @@ import numpy as np
 import io
 import base64
 import matplotlib.pyplot as plt
+import os
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app)
-
-@app.route("/")
-def serve_index():
-    return app.send_static_file("index.html")
 
 def fig_to_base64(fig):
     buf = io.BytesIO()
@@ -24,13 +19,17 @@ def fig_to_base64(fig):
     plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
+@app.route("/")
+def serve_index():
+    return app.send_static_file("index.html")
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
     file1 = request.files.get("author1")
     file2 = request.files.get("author2")
 
     if not file1 or not file2:
-        return jsonify({"error": "Both files are required."}), 400
+        return jsonify({"error": "Please upload both files."}), 400
 
     text1 = file1.read().decode("utf-8")
     text2 = file2.read().decode("utf-8")
@@ -51,23 +50,22 @@ def analyze():
     X = np.array(features)
     y = np.array(labels)
 
-    if len(set(y)) < 2 or len(y) < 4:
-        return jsonify({"error": "Not enough data to distinguish authors."}), 400
+    if len(set(y)) < 2:
+        return jsonify({"error": "Not enough variation to distinguish authors."}), 400
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.3, random_state=42)
     clf = LogisticRegression(max_iter=1000)
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
     acc = round(clf.score(X_test, y_test) * 100, 2)
-
-    fp1 = get_author_fingerprint(X[y == 0]).tolist()
-    fp2 = get_author_fingerprint(X[y == 1]).tolist()
     report = classification_report(y_test, y_pred, target_names=["Author1", "Author2"])
 
-    # Generate plots
+    # Fingerprint & Plots
     pca_fig = get_pca_plot(X, y)
     fp1_fig = get_fingerprint_plot(X, y, 0)
     fp2_fig = get_fingerprint_plot(X, y, 1)
+    fp1 = get_author_fingerprint(X[y == 0]).tolist()
+    fp2 = get_author_fingerprint(X[y == 1]).tolist()
 
     return jsonify({
         "accuracy": acc,
@@ -80,4 +78,5 @@ def analyze():
     })
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
