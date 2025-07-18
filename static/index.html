@@ -3,41 +3,94 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Author Fingerprint Comparator</title>
+  <title>Stylometric AI - Author Fingerprint Generator</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(120deg, #f0f8ff, #ffffff);
+      color: #333;
       padding: 2rem;
-      max-width: 900px;
+      max-width: 960px;
       margin: auto;
     }
-    h2, h3 {
-      color: #333;
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
     }
+
+    header img {
+      width: 80px;
+      height: 80px;
+    }
+
+    header h1 {
+      font-size: 2.5em;
+      margin: 0.2em 0 0;
+      color: #1e3a8a;
+    }
+
+    header p {
+      font-size: 1.1em;
+      color: #555;
+      margin: 0;
+    }
+
     input[type="file"], button {
       margin: 1em 0;
       display: block;
+      font-size: 1em;
     }
+
+    button {
+      padding: 0.5em 1.5em;
+      background-color: #1e3a8a;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #274bb3;
+    }
+
     img {
       max-width: 100%;
       border: 1px solid #ccc;
       margin: 1em 0;
+      border-radius: 8px;
     }
+
     pre {
-      background: #f4f4f4;
+      background: #f9f9f9;
       padding: 1em;
       overflow-x: auto;
+      border-radius: 5px;
       white-space: pre-wrap;
     }
+
     .verdict {
       font-size: 1.2em;
       font-weight: bold;
+      margin-bottom: 1em;
+    }
+
+    .highlight {
+      background: #e0f2fe;
+      padding: 0.5em;
+      border-left: 5px solid #3b82f6;
+      border-radius: 3px;
     }
   </style>
 </head>
 <body>
-  <h2>✍️ Author Fingerprint Comparator</h2>
-  <p>Upload two `.txt` files to compare their writing style and generate stylometric fingerprints.</p>
+  <header>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Magnifying_glass_icon.svg/120px-Magnifying_glass_icon.svg.png" alt="Logo" />
+    <h1>Stylometric AI</h1>
+    <p>Author Fingerprint Generator</p>
+  </header>
 
   <input type="file" id="file1" accept=".txt">
   <input type="file" id="file2" accept=".txt">
@@ -76,8 +129,9 @@
         const data = await response.json();
 
         resultsDiv.innerHTML = `
-          <h3>📊 Accuracy: ${data.accuracy}%</h3>
+          <div class="highlight"><strong>📊 Accuracy:</strong> ${data.accuracy}%</div>
           <p class="verdict">${data.verdict}</p>
+
           <h3>📋 Classification Report</h3>
           <pre>${data.report}</pre>
 
