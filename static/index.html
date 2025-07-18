@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Author Fingerprint Comparator</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2rem; max-width: 800px; margin: auto; }
+    input, button { margin: 1em 0; }
+    img { max-width: 100%; margin-top: 1em; border: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <h2>?? Author Fingerprint Comparator</h2>
+  <p>Upload two text files to compare their writing style.</p>
+
+  <input type="file" id="file1" accept=".txt"><br>
+  <input type="file" id="file2" accept=".txt"><br>
+  <button onclick="analyze()">Analyze</button>
+
+  <div id="results"></div>
+
+  <script>
+    async function analyze() {
+      const file1 = document.getElementById("file1").files[0];
+      const file2 = document.getElementById("file2").files[0];
+      if (!file1 || !file2) return alert("Please upload both files.");
+
+      const formData = new FormData();
+      formData.append("author1", file1);
+      formData.append("author2", file2);
+
+      const response = await fetch("/analyze", {
+        method: "POST",
+        body: formData
+      });
+
+      const resultsDiv = document.getElementById("results");
+
+      if (!response.ok) {
+        const err = await response.json();
+        resultsDiv.innerHTML = `<p style="color:red;">Error: ${err.error}</p>`;
+        return;
+      }
+
+      const data = await response.json();
+
+      resultsDiv.innerHTML = `
+        <h3>?? Accuracy: ${data.accuracy}%</h3>
+        <pre>${data.report}</pre>
+        <h3>?? Author Fingerprints</h3>
+        <p><b>Author 1:</b> ${JSON.stringify(data.fingerprint1.slice(0, 6))}...</p>
+        <p><b>Author 2:</b> ${JSON.stringify(data.fingerprint2.slice(0, 6))}...</p>
+        <h3>?? PCA Cluster</h3>
+        <img src="data:image/png;base64,${data.pca_plot}">
+        <h3>?? Author 1 Fingerprint</h3>
+        <img src="data:image/png;base64,${data.fp1_plot}">
+        <h3>?? Author 2 Fingerprint</h3>
+        <img src="data:image/png;base64,${data.fp2_plot}">
+      `;
+    }
+  </script>
+</body>
+</html>
