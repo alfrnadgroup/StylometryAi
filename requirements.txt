@@ -5,3 +5,5 @@ matplotlib
 numpy
 PyJWT
 requests
+python-dotenv
+
