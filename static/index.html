@@ -4,117 +4,92 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Stylometry AI</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
     body {
-      margin: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
       background: linear-gradient(to right, #f0f2f5, #c9d6ff);
       color: #333;
+      padding-top: 150px; /* Reserve space for fixed header */
     }
 
-    /* Fixed Header Bar */
     header {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
-      background-color: #ffffffee;
-      height: 140px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      padding: 0 2rem;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      z-index: 1000;
+      background-color: #ffffffee;
+      padding: 1rem 2rem;
+      border-bottom: 2px solid #ddd;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      z-index: 999;
     }
 
-    header img.logo {
-      height: 100px;
+    header img {
+      height: 140px;
       margin-right: 20px;
     }
 
-    .title-texts {
+    .title-group {
       display: flex;
       flex-direction: column;
-      align-items: center;
     }
 
-    .main-title, .subtitle {
-      background: #bdc3c7;
-      border-radius: 12px;
-      padding: 0.5rem 1.2rem;
-      font-weight: bold;
+    .title-group h1 {
+      font-size: 2.5rem;
+      margin: 0;
       color: #2c3e50;
-      margin: 4px 0;
-      box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.15);
-      text-transform: uppercase;
+      background: #ecf0f1;
+      padding: 5px 10px;
+      border-radius: 8px;
+      box-shadow: inset 0 0 4px #bbb;
     }
 
-    .main-title {
-      font-size: 1.4rem;
-    }
-
-    .subtitle {
-      font-size: 1.1rem;
-    }
-
-    main {
-      padding: 160px 1rem 2rem;
+    .title-group p {
+      margin: 8px 0 0;
+      font-size: 1.2rem;
       text-align: center;
+      background: #ecf0f1;
+      padding: 4px 10px;
+      border-radius: 6px;
+      box-shadow: inset 0 0 4px #bbb;
     }
 
     .upload-card {
+      max-width: 600px;
+      margin: auto;
       background: #ffffffcc;
-      max-width: 500px;
-      margin: 0 auto;
       padding: 2rem;
-      border-radius: 15px;
-      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      text-align: center;
     }
 
-    input[type="file"] {
-      display: block;
-      margin: 1rem auto;
+    input[type="file"], button {
+      margin: 1em 0;
       font-size: 1rem;
     }
 
     button {
       background: #3498db;
       color: white;
-      padding: 0.6em 1.2em;
+      padding: 0.6em 1.5em;
       border: none;
       border-radius: 6px;
       cursor: pointer;
       transition: background 0.3s ease;
-      font-size: 1rem;
     }
 
     button:hover {
       background: #2980b9;
     }
 
-    .notification {
-      margin-top: 1rem;
-      font-size: 1.2rem;
-      font-weight: bold;
-      padding: 1rem;
-      border-radius: 8px;
-    }
-
-    .notification.same {
-      background-color: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
-    }
-
-    .notification.different {
-      background-color: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
+    #results {
+      margin: 3rem auto;
+      max-width: 800px;
     }
 
     img.result-img {
@@ -130,36 +105,44 @@
       border-radius: 10px;
       overflow-x: auto;
       white-space: pre-wrap;
-      text-align: left;
     }
 
-    #results {
-      margin-top: 2rem;
+    .notification {
+      font-weight: bold;
+      padding: 1em;
+      border-radius: 10px;
+      margin: 1em 0;
+    }
+
+    .same {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .different {
+      background-color: #f8d7da;
+      color: #721c24;
     }
   </style>
 </head>
 <body>
 
-  <!-- Fixed Header -->
   <header>
-    <img class="logo" src="logo.png" alt="Logo" />
-    <div class="title-texts">
-      <div class="main-title">Stylometry AI</div>
-      <div class="subtitle">Author Fingerprint</div>
+    <img src="logo.png" alt="Logo" />
+    <div class="title-group">
+      <h1>Stylometry AI</h1>
+      <p>Author Fingerprint</p>
     </div>
   </header>
 
-  <!-- Main Scrollable Content -->
-  <main>
-    <div class="upload-card">
-      <p>Upload two <code>.txt</code> files to compare their writing styles using AI stylometry:</p>
-      <input type="file" id="file1" accept=".txt">
-      <input type="file" id="file2" accept=".txt">
-      <button onclick="analyze()">🔍 Analyze</button>
-    </div>
+  <div class="upload-card">
+    <p>Upload two <code>.txt</code> files to compare their writing styles using AI stylometry.</p>
+    <input type="file" id="file1" accept=".txt"><br>
+    <input type="file" id="file2" accept=".txt"><br>
+    <button onclick="analyze()">🔍 Analyze</button>
+  </div>
 
-    <div id="results"></div>
-  </main>
+  <div id="results"></div>
 
   <script>
     async function analyze() {
@@ -187,6 +170,41 @@
         ? `<div class="notification same">✅ Likely written by the same author (Accuracy: ${data.accuracy}%)</div>`
         : `<div class="notification different">❌ Likely written by different authors (Accuracy: ${data.accuracy}%)</div>`;
 
+      function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.setFontSize(16);
+        doc.text("Stylometry AI Report", 20, 20);
+        doc.setFontSize(12);
+        doc.text(`Accuracy: ${data.accuracy}%`, 20, 30);
+        doc.text("Verdict:", 20, 40);
+        doc.text(data.accuracy <= 60 ? "✅ Same author" : "❌ Different authors", 40, 40);
+
+        doc.text("Fingerprint Vectors:", 20, 50);
+        doc.setFontSize(10);
+        doc.text("Author 1: " + JSON.stringify(data.fingerprint1), 20, 60, { maxWidth: 170 });
+        doc.text("Author 2: " + JSON.stringify(data.fingerprint2), 20, 80, { maxWidth: 170 });
+
+        const pcaImg = "data:image/png;base64," + data.pca_plot;
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.text("PCA Style Cluster", 20, 20);
+        doc.addImage(pcaImg, "PNG", 15, 30, 180, 100);
+
+        const fp1 = "data:image/png;base64," + data.fp1_plot;
+        doc.addPage();
+        doc.text("Author 1 Fingerprint", 20, 20);
+        doc.addImage(fp1, "PNG", 15, 30, 180, 100);
+
+        const fp2 = "data:image/png;base64," + data.fp2_plot;
+        doc.addPage();
+        doc.text("Author 2 Fingerprint", 20, 20);
+        doc.addImage(fp2, "PNG", 15, 30, 180, 100);
+
+        doc.save("stylometry_report.pdf");
+      }
+
       document.getElementById("results").innerHTML = `
         ${verdict}
         <h3>📊 Accuracy Score: ${data.accuracy}%</h3>
@@ -195,6 +213,8 @@
         <h3>🧬 Feature Fingerprints</h3>
         <p><b>Author 1:</b> ${JSON.stringify(data.fingerprint1)}</p>
         <p><b>Author 2:</b> ${JSON.stringify(data.fingerprint2)}</p>
+
+        <button onclick="(${downloadPDF.toString()})()">📄 Download PDF Report</button>
 
         <h3>📉 PCA Style Cluster</h3>
         <img class="result-img" src="data:image/png;base64,${data.pca_plot}" />
