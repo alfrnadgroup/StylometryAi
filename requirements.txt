@@ -3,3 +3,5 @@ flask-cors
 scikit-learn
 matplotlib
 numpy
+PyJWT
+requests
