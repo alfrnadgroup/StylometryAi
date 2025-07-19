@@ -1,6 +1,12 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from style_utils import *
+from style_utils import (
+    extract_combined_features,
+    chunk_text,
+    plot_pca,
+    get_fingerprint_plot,
+    get_author_fingerprint
+)
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
@@ -60,10 +66,12 @@ def analyze():
     acc = round(clf.score(X_test, y_test) * 100, 2)
     report = classification_report(y_test, y_pred, target_names=["Author1", "Author2"])
 
-    # Fingerprint & Plots
-    pca_fig = get_pca_plot(X, y)
+    # Generate Plots
+    pca_fig = plot_pca(X, y)
     fp1_fig = get_fingerprint_plot(X, y, 0)
     fp2_fig = get_fingerprint_plot(X, y, 1)
+
+    # Fingerprint vectors
     fp1 = get_author_fingerprint(X[y == 0]).tolist()
     fp2 = get_author_fingerprint(X[y == 1]).tolist()
 
