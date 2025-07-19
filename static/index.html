@@ -2,155 +2,167 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Stylometry AI - All-in-One</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Author Style Analyzer</title>
   <style>
-    * { box-sizing: border-box; }
     body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(to right, #f0f2f5, #c9d6ff);
-      color: #333;
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-color: #f4f4f4;
     }
-    header {
-      position: fixed;
-      top: 0;
-      width: 100%;
-      background: #ffffffdd;
-      display: flex;
-      align-items: center;
-      padding: 1rem 2rem;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      z-index: 1000;
-    }
-    header img {
-      height: 100px;
-      margin-right: 20px;
-    }
-    .title-group h1 {
-      margin: 0;
-      font-size: 2rem;
-      color: #2c3e50;
-    }
-    .title-group p {
-      margin: 5px 0 0;
-      font-size: 1.1rem;
-      color: #555;
-    }
-    main {
-      padding: 150px 20px 40px;
-      max-width: 900px;
-      margin: auto;
-    }
-    .card {
-      background: #fff;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      margin-bottom: 2rem;
-      text-align: center;
-    }
-    input[type="email"], input[type="text"], input[type="file"], button {
-      font-size: 1rem;
-      padding: 0.5em;
-      margin: 0.5em;
-      border: 1px solid #ccc;
+    h1 { color: #333; }
+    .section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
       border-radius: 8px;
+      box-shadow: 0 0 5px #ccc;
+    }
+    input, select {
+      padding: 8px;
+      margin: 5px 0;
+      width: 100%;
     }
     button {
-      background: #3498db;
+      padding: 10px 20px;
+      background: #007BFF;
       color: white;
+      border: none;
+      margin-top: 10px;
       cursor: pointer;
     }
     button:hover {
-      background: #2980b9;
-    }
-    #results img {
-      max-width: 100%;
-      border-radius: 10px;
-      margin-top: 1rem;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      background: #0056b3;
     }
     pre {
-      background: #eee;
-      padding: 1em;
-      border-radius: 10px;
-      white-space: pre-wrap;
-      text-align: left;
+      background: #f8f8f8;
+      padding: 10px;
+      overflow-x: auto;
+    }
+    img {
+      max-width: 100%;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <header>
-    <img src="logo.png" alt="Logo" />
-    <div class="title-group">
-      <h1>Stylometry AI</h1>
-      <p>Author Fingerprint Analysis</p>
-    </div>
-  </header>
 
-  <main>
-    <div class="card" id="login-card">
-      <h2>?? Login via OTP</h2>
-      <input type="email" id="email" placeholder="Enter email" />
-      <button onclick="requestOTP()">Request OTP</button><br />
-      <div id="otp-div" style="display:none;">
-        <input type="text" id="otp" placeholder="Enter OTP" />
-        <button onclick="verifyOTP()">Verify</button>
-      </div>
-      <div id="login-message"></div>
-    </div>
+  <h1>Author Style Analyzer</h1>
 
-    <div class="card" id="upload-card" style="display:none;">
-      <h2>?? Upload Author Texts</h2>
-      <p>Select two <code>.txt</code> files to analyze.</p>
-      <input type="file" id="file1" accept=".txt" /><br />
-      <input type="file" id="file2" accept=".txt" /><br />
-      <button onclick="analyze()">?? Analyze</button>
-    </div>
+  <!-- OTP Request -->
+  <div class="section">
+    <h2>Step 1: Request OTP</h2>
+    <input type="email" id="otpEmail" placeholder="Enter your email"/>
+    <button onclick="requestOTP()">Request OTP</button>
+    <div id="otpMessage"></div>
+  </div>
 
-    <div id="results" class="card" style="display:none;"></div>
-  </main>
+  <!-- Register -->
+  <div class="section">
+    <h2>Step 2: Register</h2>
+    <input type="text" id="regUsername" placeholder="Username" />
+    <input type="password" id="regPassword" placeholder="Password" />
+    <select id="regRole">
+      <option value="user">User</option>
+      <option value="admin">Admin</option>
+    </select>
+    <input type="email" id="regEmail" placeholder="Email" />
+    <input type="text" id="regOTP" placeholder="Enter OTP" />
+    <input type="text" id="regToken" placeholder="Registration Token" />
+    <button onclick="register()">Register</button>
+    <div id="regMessage"></div>
+  </div>
+
+  <!-- Login -->
+  <div class="section">
+    <h2>Step 3: Login</h2>
+    <input type="text" id="loginUsername" placeholder="Username" />
+    <input type="password" id="loginPassword" placeholder="Password" />
+    <select id="loginRole">
+      <option value="user">User</option>
+      <option value="admin">Admin</option>
+    </select>
+    <button onclick="login()">Login</button>
+    <div id="loginMessage"></div>
+  </div>
+
+  <!-- Analyze -->
+  <div class="section">
+    <h2>Step 4: Analyze Two Authors</h2>
+    <input type="file" id="author1" />
+    <input type="file" id="author2" />
+    <button onclick="analyze()">Analyze</button>
+    <div id="analyzeMessage"></div>
+    <pre id="report"></pre>
+    <img id="pcaPlot" />
+    <img id="fp1Plot" />
+    <img id="fp2Plot" />
+  </div>
 
   <script>
-    let jwt = localStorage.getItem("jwt");
+    let token = null;
+
+    function showMessage(id, text, color = "green") {
+      const el = document.getElementById(id);
+      el.innerText = text;
+      el.style.color = color;
+    }
 
     async function requestOTP() {
-      const email = document.getElementById("email").value;
+      const email = document.getElementById("otpEmail").value;
       const res = await fetch("/api/request-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email }),
       });
       const data = await res.json();
-      document.getElementById("login-message").innerText = data.message || data.error;
-      if (res.ok) document.getElementById("otp-div").style.display = "block";
+      showMessage("otpMessage", data.message || data.error, res.ok ? "green" : "red");
     }
 
-    async function verifyOTP() {
-      const email = document.getElementById("email").value;
-      const otp = document.getElementById("otp").value;
-      const res = await fetch("/api/verify-otp", {
+    async function register() {
+      const username = document.getElementById("regUsername").value;
+      const password = document.getElementById("regPassword").value;
+      const role = document.getElementById("regRole").value;
+      const email = document.getElementById("regEmail").value;
+      const otp = document.getElementById("regOTP").value;
+      const reg_token = document.getElementById("regToken").value;
+
+      const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp })
+        body: JSON.stringify({ username, password, role, email, otp, reg_token }),
       });
       const data = await res.json();
+      showMessage("regMessage", data.message || data.error, res.ok ? "green" : "red");
+    }
+
+    async function login() {
+      const username = document.getElementById("loginUsername").value;
+      const password = document.getElementById("loginPassword").value;
+      const role = document.getElementById("loginRole").value;
+
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, role }),
+      });
+
+      const data = await res.json();
       if (res.ok) {
-        jwt = data.token;
-        localStorage.setItem("jwt", jwt);
-        document.getElementById("login-card").style.display = "none";
-        document.getElementById("upload-card").style.display = "block";
+        token = data.token;
+        showMessage("loginMessage", "Login successful!", "green");
       } else {
-        document.getElementById("login-message").innerText = data.error;
+        showMessage("loginMessage", data.message || "Login failed.", "red");
       }
     }
 
     async function analyze() {
-      const file1 = document.getElementById("file1").files[0];
-      const file2 = document.getElementById("file2").files[0];
-      if (!file1 || !file2) return alert("Please upload both files.");
+      const file1 = document.getElementById("author1").files[0];
+      const file2 = document.getElementById("author2").files[0];
+      if (!file1 || !file2 || !token) {
+        showMessage("analyzeMessage", "Login and upload both files.", "red");
+        return;
+      }
 
       const formData = new FormData();
       formData.append("author1", file1);
@@ -158,52 +170,23 @@
 
       const res = await fetch("/api/analyze", {
         method: "POST",
-        headers: { Authorization: `Bearer ${jwt}` },
-        body: formData
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
       });
+
       const data = await res.json();
-
-      if (!res.ok) return alert(data.error || "Analysis failed");
-
-      const verdict = data.accuracy > 70
-        ? `? Likely same author (Accuracy: ${data.accuracy}%)`
-        : `? Likely different authors (Accuracy: ${data.accuracy}%)`;
-
-      document.getElementById("results").style.display = "block";
-      document.getElementById("results").innerHTML = `
-        <h3>${verdict}</h3>
-        <button onclick="downloadPDF()">?? Download Report (PDF)</button>
-        <pre>${data.report}</pre>
-        <p><strong>Author 1 Fingerprint:</strong> ${JSON.stringify(data.fingerprint1)}</p>
-        <p><strong>Author 2 Fingerprint:</strong> ${JSON.stringify(data.fingerprint2)}</p>
-        <h4>?? PCA Cluster</h4>
-        <img id="pcaImg" src="data:image/png;base64,${data.pca_plot}" />
-        <h4>?? Fingerprint: Author 1</h4>
-        <img id="fp1Img" src="data:image/png;base64,${data.fp1_plot}" />
-        <h4>?? Fingerprint: Author 2</h4>
-        <img id="fp2Img" src="data:image/png;base64,${data.fp2_plot}" />
-      `;
-    }
-
-    async function downloadPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.setFontSize(16);
-      doc.text("Stylometry AI Report", 10, 10);
-      const pca = document.getElementById("pcaImg");
-      const fp1 = document.getElementById("fp1Img");
-      const fp2 = document.getElementById("fp2Img");
-
-      const addImage = async (img, y) => {
-        const base64 = img.src.replace(/^data:image\/png;base64,/, "");
-        doc.addImage(base64, 'PNG', 10, y, 180, 90);
-      };
-
-      await addImage(pca, 20);
-      await addImage(fp1, 115);
-      await addImage(fp2, 210);
-
-      doc.save("stylometry_report.pdf");
+      if (res.ok) {
+        showMessage("analyzeMessage", "Analysis complete.");
+        document.getElementById("report").innerText = data.report;
+        document.getElementById("pcaPlot").src = "data:image/png;base64," + data.pca_plot;
+        document.getElementById("fp1Plot").src = "data:image/png;base64," + data.fp1_plot;
+        document.getElementById("fp2Plot").src = "data:image/png;base64," + data.fp2_plot;
+      } else {
+        showMessage("analyzeMessage", data.error || "Analysis failed", "red");
+        document.getElementById("report").innerText = "";
+      }
     }
   </script>
 </body>
