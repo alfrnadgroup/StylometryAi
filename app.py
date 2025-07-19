@@ -42,7 +42,6 @@ OTP_FILE = 'otp_store.json'
 users = {
     'admin': {'password': 'adminpass', 'role': 'admin', 'email': 'admin@example.com'}
 }
-
 otp_store = {}
 
 # --- OTP Utilities ---
@@ -155,43 +154,6 @@ def verify_otp():
     save_otp_store()
     return jsonify({'message': 'OTP verified'}), 200
 
-@app.route('/api/register', methods=['POST'])
-def register():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-    role = data.get('role')
-    email = data.get('email')
-    otp = data.get('otp')
-    reg_token = data.get('reg_token')
-
-    if not all([username, password, role, email, otp, reg_token]):
-        return jsonify({'message': 'Missing fields'}), 400
-    if reg_token != REGISTRATION_TOKEN:
-        return jsonify({'message': 'Invalid registration token'}), 403
-    if username in users:
-        return jsonify({'message': 'Username exists'}), 400
-    if email not in otp_store or otp != otp_store[email]['otp']:
-        return jsonify({'message': 'Invalid or missing OTP'}), 400
-
-    users[username] = {'password': password, 'role': role, 'email': email}
-    del otp_store[email]
-    save_otp_store()
-    return jsonify({'message': 'User registered'}), 200
-
-@app.route('/api/login', methods=['POST'])
-def login():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-    role = data.get('role')
-    user = users.get(username)
-    if not user or user['password'] != password or user['role'] != role:
-        return jsonify({'message': 'Invalid credentials'}), 401
-
-    token = generate_jwt(username, role)
-    return jsonify({'token': token, 'role': role})
-
 @app.route('/api/analyze', methods=["POST"])
 def analyze():
     payload, error, status = validate_token()
@@ -231,7 +193,6 @@ def analyze():
     acc = round(clf.score(X_test, y_test) * 100, 2)
     report = classification_report(y_test, y_pred, target_names=["Author1", "Author2"])
 
-    # Plots and Fingerprints
     pca_fig = plot_pca(X, y)
     fp1_fig = get_fingerprint_plot(X, y, 0)
     fp2_fig = get_fingerprint_plot(X, y, 1)
