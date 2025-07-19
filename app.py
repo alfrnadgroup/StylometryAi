@@ -1,14 +1,6 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-import os
-import io
-import base64
-import json
-import random
-import string
-import time
-import jwt
-import requests
+import os, io, base64, json, random, string, time, jwt, requests
 from datetime import datetime, timedelta, timezone
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,54 +17,31 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from dotenv import load_dotenv
 
-# --- Load environment variables ---
+# --- Config ---
 load_dotenv()
-
 app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app)
 
-# --- Configuration from .env ---
 JWT_SECRET = os.getenv("JWT_SECRET", "secret")
 JWT_ALGORITHM = 'HS256'
-REGISTRATION_TOKEN = os.getenv("REGISTRATION_TOKEN", "REGISTER2025")
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "noreply@example.com")
-OTP_FILE = 'otp_store.json'
-
-# --- Simulated user store ---
-users = {
-    'admin': {'password': 'adminpass', 'role': 'admin', 'email': 'admin@example.com'}
-}
-
-# --- OTP Store ---
+OTP_FILE = "otp_store.json"
 otp_store = {}
 
-def load_otp_store():
-    if os.path.exists(OTP_FILE):
-        with open(OTP_FILE, 'r') as f:
-            data = json.load(f)
-            for email, val in data.items():
-                otp_store[email] = {
-                    'otp': val['otp'],
-                    'expires': datetime.fromisoformat(val['expires'])
-                }
+def fig_to_base64(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight")
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-def save_otp_store():
-    with open(OTP_FILE, 'w') as f:
-        json.dump({
-            email: {'otp': val['otp'], 'expires': val['expires'].isoformat()}
-            for email, val in otp_store.items()
-        }, f)
-
-load_otp_store()
-
-def generate_jwt(username, role):
+# --- JWT ---
+def generate_jwt(email):
     payload = {
-        'username': username,
-        'role': role,
-        'iat': int(time.time()),
-        'exp': int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
+        'email': email,
+        'iat': time.time(),
+        'exp': time.time() + 3600
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -82,156 +51,124 @@ def validate_token():
         return None, jsonify({'message': 'Unauthorized'}), 401
     token = auth_header.split()[1]
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        return payload, None, None
+        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM]), None, None
     except jwt.ExpiredSignatureError:
         return None, jsonify({'message': 'Token expired'}), 401
     except Exception:
         return None, jsonify({'message': 'Invalid token'}), 401
 
-def fig_to_base64(fig):
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight")
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
+# --- OTP handling ---
+def load_otp_store():
+    if os.path.exists(OTP_FILE):
+        with open(OTP_FILE, "r") as f:
+            data = json.load(f)
+            for email, entry in data.items():
+                otp_store[email] = {
+                    "otp": entry["otp"],
+                    "expires": datetime.fromisoformat(entry["expires"])
+                }
 
-# --- Routes ---
+def save_otp_store():
+    with open(OTP_FILE, "w") as f:
+        json.dump({
+            email: {
+                "otp": val["otp"],
+                "expires": val["expires"].isoformat()
+            } for email, val in otp_store.items()
+        }, f)
+
+load_otp_store()
+
 @app.route("/")
-def serve_index():
+def serve_frontend():
     return app.send_static_file("index.html")
 
-@app.route('/api/request-otp', methods=['POST'])
+@app.route("/api/request-otp", methods=["POST"])
 def request_otp():
     data = request.json
-    email = data.get('email')
+    email = data.get("email")
     if not email:
-        return jsonify({'error': 'Email is required'}), 400
+        return jsonify({"error": "Email required"}), 400
 
     otp = ''.join(random.choices(string.digits, k=6))
     expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
-    otp_store[email] = {'otp': otp, 'expires': expiry}
+    otp_store[email] = {"otp": otp, "expires": expiry}
     save_otp_store()
 
-    payload = {
-        "sender": {"name": "Auth App", "email": SENDER_EMAIL},
-        "to": [{"email": email}],
-        "subject": "Your OTP Code",
-        "htmlContent": f"<p>Your OTP is <strong>{otp}</strong>. It expires in 5 minutes.</p>"
-    }
     headers = {
         "api-key": BREVO_API_KEY,
-        "Content-Type": "application/json",
-        "Accept": "application/json"
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "sender": {"name": "Stylometry AI", "email": SENDER_EMAIL},
+        "to": [{"email": email}],
+        "subject": "Your OTP Code",
+        "htmlContent": f"<p>Your OTP is: <strong>{otp}</strong></p>"
     }
 
     try:
-        response = requests.post(BREVO_API_URL, json=payload, headers=headers)
-        if response.status_code == 201:
-            return jsonify({'message': 'OTP sent.'}), 200
+        r = requests.post(BREVO_API_URL, json=payload, headers=headers)
+        if r.status_code == 201:
+            return jsonify({"message": "OTP sent"}), 200
         else:
-            return jsonify({'error': 'Failed to send OTP.'}), 500
-    except Exception as e:
-        return jsonify({'error': 'Email send failed'}), 500
+            return jsonify({"error": "Email service failed"}), 500
+    except Exception:
+        return jsonify({"error": "Failed to send OTP"}), 500
 
-@app.route('/api/verify-otp', methods=['POST'])
+@app.route("/api/verify-otp", methods=["POST"])
 def verify_otp():
     data = request.json
-    email = data.get('email')
-    user_otp = data.get('otp')
+    email, otp_input = data.get("email"), data.get("otp")
+    if not email or not otp_input:
+        return jsonify({"error": "Email and OTP required"}), 400
 
-    if not email or not user_otp:
-        return jsonify({'error': 'Missing email or OTP'}), 400
-    if email not in otp_store:
-        return jsonify({'error': 'No OTP requested'}), 400
-    stored = otp_store[email]
-    if datetime.now(timezone.utc) > stored['expires']:
+    stored = otp_store.get(email)
+    if not stored:
+        return jsonify({"error": "OTP not requested"}), 400
+    if datetime.now(timezone.utc) > stored["expires"]:
         del otp_store[email]
         save_otp_store()
-        return jsonify({'error': 'OTP expired'}), 400
-    if user_otp != stored['otp']:
-        return jsonify({'error': 'Invalid OTP'}), 400
+        return jsonify({"error": "OTP expired"}), 400
+    if stored["otp"] != otp_input:
+        return jsonify({"error": "Invalid OTP"}), 400
 
     del otp_store[email]
     save_otp_store()
-    return jsonify({'message': 'OTP verified'}), 200
+    token = generate_jwt(email)
+    return jsonify({"message": "OTP verified", "token": token})
 
-@app.route('/api/register', methods=['POST'])
-def register():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-    role = data.get('role')
-    email = data.get('email')
-    otp = data.get('otp')
-    reg_token = data.get('reg_token')
-
-    if not all([username, password, role, email, otp, reg_token]):
-        return jsonify({'message': 'Missing fields'}), 400
-    if reg_token != REGISTRATION_TOKEN:
-        return jsonify({'message': 'Invalid registration token'}), 403
-    if username in users:
-        return jsonify({'message': 'Username exists'}), 400
-    if email not in otp_store or otp != otp_store[email]['otp']:
-        return jsonify({'message': 'Invalid or missing OTP'}), 400
-
-    users[username] = {'password': password, 'role': role, 'email': email}
-    del otp_store[email]
-    save_otp_store()
-    return jsonify({'message': 'User registered'}), 200
-
-@app.route('/api/login', methods=['POST'])
-def login():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-    role = data.get('role')
-    user = users.get(username)
-    if not user or user['password'] != password or user['role'] != role:
-        return jsonify({'message': 'Invalid credentials'}), 401
-
-    token = generate_jwt(username, role)
-    return jsonify({'token': token, 'role': role})
-
-@app.route('/api/analyze', methods=["POST"])
+@app.route("/api/analyze", methods=["POST"])
 def analyze():
-    payload, error, status = validate_token()
-    if error:
-        return error, status
+    payload, err, code = validate_token()
+    if err: return err, code
 
-    file1 = request.files.get("author1")
-    file2 = request.files.get("author2")
-    if not file1 or not file2:
+    f1 = request.files.get("author1")
+    f2 = request.files.get("author2")
+    if not f1 or not f2:
         return jsonify({"error": "Both files required"}), 400
 
-    text1 = file1.read().decode("utf-8")
-    text2 = file2.read().decode("utf-8")
+    try:
+        t1 = f1.read().decode("utf-8")
+        t2 = f2.read().decode("utf-8")
+    except Exception:
+        return jsonify({"error": "Invalid file format"}), 400
 
-    chunks1 = chunk_text(text1)
-    chunks2 = chunk_text(text2)
+    chunks1 = chunk_text(t1)
+    chunks2 = chunk_text(t2)
 
     if len(chunks1) < 2 or len(chunks2) < 2:
-        return jsonify({"error": "Not enough text for comparison"}), 400
+        return jsonify({"error": "Not enough text"}), 400
 
-    features = []
-    labels = []
-    for chunk in chunks1:
-        features.append(extract_combined_features(chunk))
-        labels.append(0)
-    for chunk in chunks2:
-        features.append(extract_combined_features(chunk))
-        labels.append(1)
+    X, y = [], []
+    for c in chunks1: X.append(extract_combined_features(c)); y.append(0)
+    for c in chunks2: X.append(extract_combined_features(c)); y.append(1)
+    X, y = np.array(X), np.array(y)
 
-    X = np.array(features)
-    y = np.array(labels)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.3)
+    model = LogisticRegression(max_iter=1000).fit(X_train, y_train)
+    acc = round(model.score(X_test, y_test) * 100, 2)
+    report = classification_report(y_test, model.predict(X_test), target_names=["Author1", "Author2"])
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.3, random_state=42)
-    clf = LogisticRegression(max_iter=1000)
-    clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_test)
-    acc = round(clf.score(X_test, y_test) * 100, 2)
-    report = classification_report(y_test, y_pred, target_names=["Author1", "Author2"])
-
-    # Plots and Fingerprints
     pca_fig = plot_pca(X, y)
     fp1_fig = get_fingerprint_plot(X, y, 0)
     fp2_fig = get_fingerprint_plot(X, y, 1)
@@ -249,5 +186,4 @@ def analyze():
     })
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(debug=True)
