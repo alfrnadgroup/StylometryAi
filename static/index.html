@@ -1,210 +1,189 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Stylometry AI - All-in-One</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(to right, #f0f2f5, #c9d6ff);
-      color: #333;
-    }
-    header {
-      position: fixed;
-      top: 0;
-      width: 100%;
-      background: #ffffffdd;
-      display: flex;
-      align-items: center;
-      padding: 1rem 2rem;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      z-index: 1000;
-    }
-    header img {
-      height: 100px;
-      margin-right: 20px;
-    }
-    .title-group h1 {
-      margin: 0;
-      font-size: 2rem;
-      color: #2c3e50;
-    }
-    .title-group p {
-      margin: 5px 0 0;
-      font-size: 1.1rem;
-      color: #555;
-    }
-    main {
-      padding: 150px 20px 40px;
-      max-width: 900px;
-      margin: auto;
-    }
-    .card {
-      background: #fff;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      margin-bottom: 2rem;
-      text-align: center;
-    }
-    input[type="email"], input[type="text"], input[type="file"], button {
-      font-size: 1rem;
-      padding: 0.5em;
-      margin: 0.5em;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-    button {
-      background: #3498db;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #2980b9;
-    }
-    #results img {
-      max-width: 100%;
-      border-radius: 10px;
-      margin-top: 1rem;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
-    }
-    pre {
-      background: #eee;
-      padding: 1em;
-      border-radius: 10px;
-      white-space: pre-wrap;
-      text-align: left;
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <img src="logo.png" alt="Logo" />
-    <div class="title-group">
-      <h1>Stylometry AI</h1>
-      <p>Author Fingerprint Analysis</p>
-    </div>
-  </header>
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
+import os, io, base64, json, random, string, time, jwt, requests
+from datetime import datetime, timedelta, timezone
+import matplotlib.pyplot as plt
+import numpy as np
 
-  <main>
-    <div class="card" id="login-card">
-      <h2>🔐 Login via OTP</h2>
-      <input type="email" id="email" placeholder="Enter email" />
-      <button onclick="requestOTP()">Request OTP</button><br />
-      <div id="otp-div" style="display:none;">
-        <input type="text" id="otp" placeholder="Enter OTP" />
-        <button onclick="verifyOTP()">Verify</button>
-      </div>
-      <div id="login-message"></div>
-    </div>
+from style_utils import (
+    extract_combined_features,
+    chunk_text,
+    plot_pca,
+    get_fingerprint_plot,
+    get_author_fingerprint
+)
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+from dotenv import load_dotenv
 
-    <div class="card" id="upload-card" style="display:none;">
-      <h2>📝 Upload Author Texts</h2>
-      <p>Select two <code>.txt</code> files to analyze.</p>
-      <input type="file" id="file1" accept=".txt" /><br />
-      <input type="file" id="file2" accept=".txt" /><br />
-      <button onclick="analyze()">🔍 Analyze</button>
-    </div>
+# --- Config ---
+load_dotenv()
+app = Flask(__name__, static_folder="static", static_url_path="")
+CORS(app)
 
-    <div id="results" class="card" style="display:none;"></div>
-  </main>
+JWT_SECRET = os.getenv("JWT_SECRET", "secret")
+JWT_ALGORITHM = 'HS256'
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+SENDER_EMAIL = os.getenv("SENDER_EMAIL", "noreply@example.com")
+OTP_FILE = "otp_store.json"
+otp_store = {}
 
-  <script>
-    let jwt = localStorage.getItem("jwt");
+def fig_to_base64(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight")
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-    async function requestOTP() {
-      const email = document.getElementById("email").value;
-      const res = await fetch("/api/request-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      });
-      const data = await res.json();
-      document.getElementById("login-message").innerText = data.message || data.error;
-      if (res.ok) document.getElementById("otp-div").style.display = "block";
+# --- JWT ---
+def generate_jwt(email):
+    payload = {
+        'email': email,
+        'iat': time.time(),
+        'exp': time.time() + 3600
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def validate_token():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return None, jsonify({'message': 'Unauthorized'}), 401
+    token = auth_header.split()[1]
+    try:
+        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM]), None, None
+    except jwt.ExpiredSignatureError:
+        return None, jsonify({'message': 'Token expired'}), 401
+    except Exception:
+        return None, jsonify({'message': 'Invalid token'}), 401
+
+# --- OTP handling ---
+def load_otp_store():
+    if os.path.exists(OTP_FILE):
+        with open(OTP_FILE, "r") as f:
+            data = json.load(f)
+            for email, entry in data.items():
+                otp_store[email] = {
+                    "otp": entry["otp"],
+                    "expires": datetime.fromisoformat(entry["expires"])
+                }
+
+def save_otp_store():
+    with open(OTP_FILE, "w") as f:
+        json.dump({
+            email: {
+                "otp": val["otp"],
+                "expires": val["expires"].isoformat()
+            } for email, val in otp_store.items()
+        }, f)
+
+load_otp_store()
+
+@app.route("/")
+def serve_frontend():
+    return app.send_static_file("index.html")
+
+@app.route("/api/request-otp", methods=["POST"])
+def request_otp():
+    data = request.json
+    email = data.get("email")
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+
+    otp = ''.join(random.choices(string.digits, k=6))
+    expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
+    otp_store[email] = {"otp": otp, "expires": expiry}
+    save_otp_store()
+
+    headers = {
+        "api-key": BREVO_API_KEY,
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "sender": {"name": "Stylometry AI", "email": SENDER_EMAIL},
+        "to": [{"email": email}],
+        "subject": "Your OTP Code",
+        "htmlContent": f"<p>Your OTP is: <strong>{otp}</strong></p>"
     }
 
-    async function verifyOTP() {
-      const email = document.getElementById("email").value;
-      const otp = document.getElementById("otp").value;
-      const res = await fetch("/api/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        jwt = data.token;
-        localStorage.setItem("jwt", jwt);
-        document.getElementById("login-card").style.display = "none";
-        document.getElementById("upload-card").style.display = "block";
-      } else {
-        document.getElementById("login-message").innerText = data.error;
-      }
-    }
+    try:
+        r = requests.post(BREVO_API_URL, json=payload, headers=headers)
+        if r.status_code == 201:
+            return jsonify({"message": "OTP sent"}), 200
+        else:
+            return jsonify({"error": "Email service failed"}), 500
+    except Exception:
+        return jsonify({"error": "Failed to send OTP"}), 500
 
-    async function analyze() {
-      const file1 = document.getElementById("file1").files[0];
-      const file2 = document.getElementById("file2").files[0];
-      if (!file1 || !file2) return alert("Please upload both files.");
+@app.route("/api/verify-otp", methods=["POST"])
+def verify_otp():
+    data = request.json
+    email, otp_input = data.get("email"), data.get("otp")
+    if not email or not otp_input:
+        return jsonify({"error": "Email and OTP required"}), 400
 
-      const formData = new FormData();
-      formData.append("author1", file1);
-      formData.append("author2", file2);
+    stored = otp_store.get(email)
+    if not stored:
+        return jsonify({"error": "OTP not requested"}), 400
+    if datetime.now(timezone.utc) > stored["expires"]:
+        del otp_store[email]
+        save_otp_store()
+        return jsonify({"error": "OTP expired"}), 400
+    if stored["otp"] != otp_input:
+        return jsonify({"error": "Invalid OTP"}), 400
 
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${jwt}` },
-        body: formData
-      });
-      const data = await res.json();
+    del otp_store[email]
+    save_otp_store()
+    token = generate_jwt(email)
+    return jsonify({"message": "OTP verified", "token": token})
 
-      if (!res.ok) return alert(data.error || "Analysis failed");
+@app.route("/api/analyze", methods=["POST"])
+def analyze():
+    payload, err, code = validate_token()
+    if err: return err, code
 
-      const verdict = data.accuracy > 70
-        ? `✅ Likely same author (Accuracy: ${data.accuracy}%)`
-        : `❌ Likely different authors (Accuracy: ${data.accuracy}%)`;
+    f1 = request.files.get("author1")
+    f2 = request.files.get("author2")
+    if not f1 or not f2:
+        return jsonify({"error": "Both files required"}), 400
 
-      document.getElementById("results").style.display = "block";
-      document.getElementById("results").innerHTML = `
-        <h3>${verdict}</h3>
-        <button onclick="downloadPDF()">⬇️ Download Report (PDF)</button>
-        <pre>${data.report}</pre>
-        <p><strong>Author 1 Fingerprint:</strong> ${JSON.stringify(data.fingerprint1)}</p>
-        <p><strong>Author 2 Fingerprint:</strong> ${JSON.stringify(data.fingerprint2)}</p>
-        <h4>🧭 PCA Cluster</h4>
-        <img id="pcaImg" src="data:image/png;base64,${data.pca_plot}" />
-        <h4>🔹 Fingerprint: Author 1</h4>
-        <img id="fp1Img" src="data:image/png;base64,${data.fp1_plot}" />
-        <h4>🔸 Fingerprint: Author 2</h4>
-        <img id="fp2Img" src="data:image/png;base64,${data.fp2_plot}" />
-      `;
-    }
+    try:
+        t1 = f1.read().decode("utf-8")
+        t2 = f2.read().decode("utf-8")
+    except Exception:
+        return jsonify({"error": "Invalid file format"}), 400
 
-    async function downloadPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      doc.setFontSize(16);
-      doc.text("Stylometry AI Report", 10, 10);
-      const pca = document.getElementById("pcaImg");
-      const fp1 = document.getElementById("fp1Img");
-      const fp2 = document.getElementById("fp2Img");
+    chunks1 = chunk_text(t1)
+    chunks2 = chunk_text(t2)
 
-      const addImage = async (img, y) => {
-        const base64 = img.src.replace(/^data:image\/png;base64,/, "");
-        doc.addImage(base64, 'PNG', 10, y, 180, 90);
-      };
+    if len(chunks1) < 2 or len(chunks2) < 2:
+        return jsonify({"error": "Not enough text"}), 400
 
-      await addImage(pca, 20);
-      await addImage(fp1, 115);
-      await addImage(fp2, 210);
+    X, y = [], []
+    for c in chunks1: X.append(extract_combined_features(c)); y.append(0)
+    for c in chunks2: X.append(extract_combined_features(c)); y.append(1)
+    X, y = np.array(X), np.array(y)
 
-      doc.save("stylometry_report.pdf");
-    }
-  </script>
-</body>
-</html>
+    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.3)
+    model = LogisticRegression(max_iter=1000).fit(X_train, y_train)
+    acc = round(model.score(X_test, y_test) * 100, 2)
+    report = classification_report(y_test, model.predict(X_test), target_names=["Author1", "Author2"])
+
+    pca_fig = plot_pca(X, y)
+    fp1_fig = get_fingerprint_plot(X, y, 0)
+    fp2_fig = get_fingerprint_plot(X, y, 1)
+    fp1 = get_author_fingerprint(X[y == 0]).tolist()
+    fp2 = get_author_fingerprint(X[y == 1]).tolist()
+
+    return jsonify({
+        "accuracy": acc,
+        "report": report,
+        "fingerprint1": fp1,
+        "fingerprint2": fp2,
+        "pca_plot": fig_to_base64(pca_fig),
+        "fp1_plot": fig_to_base64(fp1_fig),
+        "fp2_plot": fig_to_base64(fp2_fig),
+    })
+
+if __name__ == "__main__":
+    app.run(debug=True)
