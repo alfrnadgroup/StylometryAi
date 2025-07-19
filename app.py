@@ -18,11 +18,44 @@ from sklearn.metrics import classification_report
 app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app)
 
+# Simple in-memory OTP storage (not for production)
+otp_store = {}
+
 @app.route("/")
 def serve_index():
     return app.send_static_file("index.html")
 
-@app.route("/api/analyze", methods=["POST"])  # 🔄 Updated route
+# ========== 🔐 OTP SYSTEM ==========
+
+@app.route("/api/request-otp", methods=["POST"])
+def request_otp():
+    data = request.get_json()
+    email = data.get("email")
+    if not email:
+        return jsonify({"error": "Email is required."}), 400
+
+    # Simulate OTP generation and delivery
+    otp = "123456"  # Normally generate this randomly
+    otp_store[email] = otp
+    return jsonify({"message": f"OTP sent to {email}", "otp": otp})  # ⚠️ Expose OTP only for testing
+
+@app.route("/api/verify-otp", methods=["POST"])
+def verify_otp():
+    data = request.get_json()
+    email = data.get("email")
+    entered_otp = data.get("otp")
+
+    if not email or not entered_otp:
+        return jsonify({"error": "Email and OTP are required."}), 400
+
+    real_otp = otp_store.get(email)
+    if real_otp and real_otp == entered_otp:
+        return jsonify({"verified": True})
+    return jsonify({"verified": False}), 401
+
+# ========== ✍️ STYLOMETRY ANALYSIS ==========
+
+@app.route("/api/analyze", methods=["POST"])
 def analyze():
     file1 = request.files.get("author1")
     file2 = request.files.get("author2")
@@ -64,15 +97,15 @@ def analyze():
     report = classification_report(y_test, y_pred, target_names=["Author1", "Author2"])
 
     # Generate plots
-    fig_pca = plot_pca(X, y)
-    fig_fp1 = get_fingerprint_plot(X, y, author_label=0)
-    fig_fp2 = get_fingerprint_plot(X, y, author_label=1)
-
     def fig_to_base64(fig):
         buf = io.BytesIO()
         fig.savefig(buf, format="png", bbox_inches="tight")
         plt.close(fig)
         return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+    fig_pca = plot_pca(X, y)
+    fig_fp1 = get_fingerprint_plot(X, y, author_label=0)
+    fig_fp2 = get_fingerprint_plot(X, y, author_label=1)
 
     return jsonify({
         "accuracy": accuracy,
