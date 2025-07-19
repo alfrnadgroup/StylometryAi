@@ -25,12 +25,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from dotenv import load_dotenv
 
-# --- Load env vars ---
+# --- Load environment variables ---
 load_dotenv()
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app)
 
+# --- Configuration from .env ---
 JWT_SECRET = os.getenv("JWT_SECRET", "secret")
 JWT_ALGORITHM = 'HS256'
 REGISTRATION_TOKEN = os.getenv("REGISTRATION_TOKEN", "REGISTER2025")
@@ -39,12 +40,14 @@ BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "noreply@example.com")
 OTP_FILE = 'otp_store.json'
 
+# --- Simulated user store ---
 users = {
     'admin': {'password': 'adminpass', 'role': 'admin', 'email': 'admin@example.com'}
 }
+
+# --- OTP Store ---
 otp_store = {}
 
-# --- OTP Utilities ---
 def load_otp_store():
     if os.path.exists(OTP_FILE):
         with open(OTP_FILE, 'r') as f:
@@ -126,10 +129,8 @@ def request_otp():
         if response.status_code == 201:
             return jsonify({'message': 'OTP sent.'}), 200
         else:
-            print("Brevo error:", response.status_code, response.text)
             return jsonify({'error': 'Failed to send OTP.'}), 500
     except Exception as e:
-        print("OTP error:", str(e))
         return jsonify({'error': 'Email send failed'}), 500
 
 @app.route('/api/verify-otp', methods=['POST'])
@@ -153,6 +154,43 @@ def verify_otp():
     del otp_store[email]
     save_otp_store()
     return jsonify({'message': 'OTP verified'}), 200
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    role = data.get('role')
+    email = data.get('email')
+    otp = data.get('otp')
+    reg_token = data.get('reg_token')
+
+    if not all([username, password, role, email, otp, reg_token]):
+        return jsonify({'message': 'Missing fields'}), 400
+    if reg_token != REGISTRATION_TOKEN:
+        return jsonify({'message': 'Invalid registration token'}), 403
+    if username in users:
+        return jsonify({'message': 'Username exists'}), 400
+    if email not in otp_store or otp != otp_store[email]['otp']:
+        return jsonify({'message': 'Invalid or missing OTP'}), 400
+
+    users[username] = {'password': password, 'role': role, 'email': email}
+    del otp_store[email]
+    save_otp_store()
+    return jsonify({'message': 'User registered'}), 200
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    role = data.get('role')
+    user = users.get(username)
+    if not user or user['password'] != password or user['role'] != role:
+        return jsonify({'message': 'Invalid credentials'}), 401
+
+    token = generate_jwt(username, role)
+    return jsonify({'token': token, 'role': role})
 
 @app.route('/api/analyze', methods=["POST"])
 def analyze():
@@ -193,6 +231,7 @@ def analyze():
     acc = round(clf.score(X_test, y_test) * 100, 2)
     report = classification_report(y_test, y_pred, target_names=["Author1", "Author2"])
 
+    # Plots and Fingerprints
     pca_fig = plot_pca(X, y)
     fp1_fig = get_fingerprint_plot(X, y, 0)
     fp2_fig = get_fingerprint_plot(X, y, 1)
