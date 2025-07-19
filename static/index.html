@@ -10,24 +10,24 @@
     }
 
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(to right, #f0f2f5, #c9d6ff);
       color: #333;
     }
 
+    /* Fixed Header Bar */
     header {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
+      background-color: #ffffffee;
       height: 120px;
       display: flex;
       align-items: center;
-      justify-content: start;
-      background-color: #ffffffee;
       padding: 0 2rem;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       z-index: 1000;
     }
 
@@ -36,28 +36,28 @@
       margin-right: 20px;
     }
 
-    .title-group {
+    .title-texts {
       display: flex;
       flex-direction: column;
     }
 
-    .title-group .title,
-    .title-group .subtitle {
+    .title-texts .main-title,
+    .title-texts .subtitle {
+      display: inline-block;
       background: #bdc3c7;
-      border: none;
-      color: #2c3e50;
-      padding: 0.5rem 1.2rem;
-      margin: 4px 0;
       border-radius: 12px;
-      box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.15);
+      padding: 0.5rem 1rem;
       font-weight: bold;
-      text-transform: uppercase;
       font-size: 1.1rem;
-      width: fit-content;
+      color: #2c3e50;
+      margin: 4px 0;
+      box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.15);
+      text-transform: uppercase;
     }
 
+    /* Page Content */
     main {
-      padding: 150px 2rem 2rem; /* Push content below fixed header */
+      padding: 140px 1rem 2rem;
       text-align: center;
     }
 
@@ -71,7 +71,8 @@
     }
 
     input[type="file"] {
-      margin: 1rem 0;
+      display: block;
+      margin: 1rem auto;
       font-size: 1rem;
     }
 
@@ -133,19 +134,21 @@
 </head>
 <body>
 
+  <!-- Fixed Header -->
   <header>
     <img class="logo" src="logo.png" alt="Logo" />
-    <div class="title-group">
-      <div class="title">Stylometry AI</div>
+    <div class="title-texts">
+      <div class="main-title">Stylometry AI</div>
       <div class="subtitle">Author Fingerprint</div>
     </div>
   </header>
 
+  <!-- Main Scrollable Content -->
   <main>
     <div class="upload-card">
       <p>Upload two <code>.txt</code> files to compare their writing styles using AI stylometry:</p>
-      <input type="file" id="file1" accept=".txt"><br>
-      <input type="file" id="file2" accept=".txt"><br>
+      <input type="file" id="file1" accept=".txt">
+      <input type="file" id="file2" accept=".txt">
       <button onclick="analyze()">🔍 Analyze</button>
     </div>
 
@@ -175,8 +178,8 @@
       const data = await response.json();
 
       const verdict = data.accuracy <= 60
-        ? `<div class="notification same">✅ Likely written by the same author (Low separability, Accuracy: ${data.accuracy}%)</div>`
-        : `<div class="notification different">❌ Likely written by different authors (High separability, Accuracy: ${data.accuracy}%)</div>`;
+        ? `<div class="notification same">✅ Likely written by the same author (Accuracy: ${data.accuracy}%)</div>`
+        : `<div class="notification different">❌ Likely written by different authors (Accuracy: ${data.accuracy}%)</div>`;
 
       document.getElementById("results").innerHTML = `
         ${verdict}
