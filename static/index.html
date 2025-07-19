@@ -3,190 +3,257 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Author Style Analyzer</title>
+  <title>Stylometry AI</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      margin: 40px;
-      background-color: #f4f4f4;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      background: linear-gradient(to right, #f0f2f5, #c9d6ff);
+      color: #333;
+      padding-top: 150px;
     }
-    h1 { color: #333; }
-    .section {
-      background: white;
-      padding: 20px;
-      margin-bottom: 20px;
+
+    header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      display: flex; align-items: center;
+      background-color: #ffffffee;
+      padding: 1rem 2rem;
+      border-bottom: 2px solid #ddd;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      z-index: 999;
+    }
+
+    header img {
+      height: 140px;
+      margin-right: 20px;
+    }
+
+    .title-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .title-group h1 {
+      font-size: 2.5rem;
+      margin: 0;
+      color: #2c3e50;
+      background: #ecf0f1;
+      padding: 5px 10px;
       border-radius: 8px;
-      box-shadow: 0 0 5px #ccc;
+      box-shadow: inset 0 0 4px #bbb;
     }
-    input, select {
-      padding: 8px;
-      margin: 5px 0;
+
+    .title-group p {
+      margin: 8px 0 0;
+      font-size: 1.2rem;
+      text-align: center;
+      background: #ecf0f1;
+      padding: 4px 10px;
+      border-radius: 6px;
+      box-shadow: inset 0 0 4px #bbb;
+    }
+
+    .upload-card {
+      max-width: 600px;
+      margin: auto;
+      background: #ffffffcc;
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    input[type="file"], input[type="email"], input[type="text"], button {
+      margin: 1em 0;
+      font-size: 1rem;
       width: 100%;
+      max-width: 400px;
+      padding: 0.5em;
     }
+
     button {
-      padding: 10px 20px;
-      background: #007BFF;
+      background: #3498db;
       color: white;
+      padding: 0.6em 1.5em;
       border: none;
-      margin-top: 10px;
+      border-radius: 6px;
       cursor: pointer;
+      transition: background 0.3s ease;
     }
+
     button:hover {
-      background: #0056b3;
+      background: #2980b9;
     }
-    pre {
-      background: #f8f8f8;
-      padding: 10px;
-      overflow-x: auto;
+
+    #results {
+      margin: 3rem auto;
+      max-width: 800px;
     }
-    img {
+
+    img.result-img {
       max-width: 100%;
-      margin-top: 10px;
+      margin-top: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    pre {
+      background: #ecf0f1;
+      padding: 1rem;
+      border-radius: 10px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    .notification {
+      font-weight: bold;
+      padding: 1em;
+      border-radius: 10px;
+      margin: 1em 0;
+    }
+
+    .same {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .different {
+      background-color: #f8d7da;
+      color: #721c24;
     }
   </style>
 </head>
 <body>
 
-  <h1>Author Style Analyzer</h1>
+  <header>
+    <img src="logo.png" alt="Logo" />
+    <div class="title-group">
+      <h1>Stylometry AI</h1>
+      <p>Author Fingerprint</p>
+    </div>
+  </header>
 
-  <!-- OTP Request -->
-  <div class="section">
-    <h2>Step 1: Request OTP</h2>
-    <input type="email" id="otpEmail" placeholder="Enter your email"/>
-    <button onclick="requestOTP()">Request OTP</button>
-    <div id="otpMessage"></div>
+  <div class="upload-card">
+    <p>Upload two <code>.txt</code> files to compare their writing styles using AI stylometry.</p>
+
+    <!-- Email & OTP fields -->
+    <input type="email" id="email" placeholder="Your email (for OTP)" />
+    <button onclick="requestOTP()">📩 Request OTP</button>
+    <input type="text" id="otp" placeholder="Enter received OTP" />
+
+    <!-- Files & Analyze -->
+    <input type="file" id="file1" accept=".txt"><br>
+    <input type="file" id="file2" accept=".txt"><br>
+    <button onclick="analyze()">🔍 Analyze</button>
+    <div id="otpStatus"></div>
   </div>
 
-  <!-- Register -->
-  <div class="section">
-    <h2>Step 2: Register</h2>
-    <input type="text" id="regUsername" placeholder="Username" />
-    <input type="password" id="regPassword" placeholder="Password" />
-    <select id="regRole">
-      <option value="user">User</option>
-      <option value="admin">Admin</option>
-    </select>
-    <input type="email" id="regEmail" placeholder="Email" />
-    <input type="text" id="regOTP" placeholder="Enter OTP" />
-    <input type="text" id="regToken" placeholder="Registration Token" />
-    <button onclick="register()">Register</button>
-    <div id="regMessage"></div>
-  </div>
-
-  <!-- Login -->
-  <div class="section">
-    <h2>Step 3: Login</h2>
-    <input type="text" id="loginUsername" placeholder="Username" />
-    <input type="password" id="loginPassword" placeholder="Password" />
-    <select id="loginRole">
-      <option value="user">User</option>
-      <option value="admin">Admin</option>
-    </select>
-    <button onclick="login()">Login</button>
-    <div id="loginMessage"></div>
-  </div>
-
-  <!-- Analyze -->
-  <div class="section">
-    <h2>Step 4: Analyze Two Authors</h2>
-    <input type="file" id="author1" />
-    <input type="file" id="author2" />
-    <button onclick="analyze()">Analyze</button>
-    <div id="analyzeMessage"></div>
-    <pre id="report"></pre>
-    <img id="pcaPlot" />
-    <img id="fp1Plot" />
-    <img id="fp2Plot" />
-  </div>
+  <div id="results"></div>
 
   <script>
-    let token = null;
-
-    function showMessage(id, text, color = "green") {
-      const el = document.getElementById(id);
-      el.innerText = text;
-      el.style.color = color;
-    }
-
     async function requestOTP() {
-      const email = document.getElementById("otpEmail").value;
+      const email = document.getElementById("email").value;
+      if (!email) return alert("Please enter your email.");
+
       const res = await fetch("/api/request-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      showMessage("otpMessage", data.message || data.error, res.ok ? "green" : "red");
-    }
-
-    async function register() {
-      const username = document.getElementById("regUsername").value;
-      const password = document.getElementById("regPassword").value;
-      const role = document.getElementById("regRole").value;
-      const email = document.getElementById("regEmail").value;
-      const otp = document.getElementById("regOTP").value;
-      const reg_token = document.getElementById("regToken").value;
-
-      const res = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, role, email, otp, reg_token }),
-      });
-      const data = await res.json();
-      showMessage("regMessage", data.message || data.error, res.ok ? "green" : "red");
-    }
-
-    async function login() {
-      const username = document.getElementById("loginUsername").value;
-      const password = document.getElementById("loginPassword").value;
-      const role = document.getElementById("loginRole").value;
-
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, role }),
+        body: JSON.stringify({ email })
       });
 
       const data = await res.json();
-      if (res.ok) {
-        token = data.token;
-        showMessage("loginMessage", "Login successful!", "green");
-      } else {
-        showMessage("loginMessage", data.message || "Login failed.", "red");
-      }
+      const status = document.getElementById("otpStatus");
+      status.innerText = res.ok ? "✅ OTP sent to your email." : "❌ Failed to send OTP.";
+      status.style.color = res.ok ? "green" : "red";
     }
 
     async function analyze() {
-      const file1 = document.getElementById("author1").files[0];
-      const file2 = document.getElementById("author2").files[0];
-      if (!file1 || !file2 || !token) {
-        showMessage("analyzeMessage", "Login and upload both files.", "red");
-        return;
-      }
+      const file1 = document.getElementById("file1").files[0];
+      const file2 = document.getElementById("file2").files[0];
+      const otp = document.getElementById("otp").value;
+      const email = document.getElementById("email").value;
+
+      if (!file1 || !file2 || !otp) return alert("Please upload files and enter OTP.");
 
       const formData = new FormData();
       formData.append("author1", file1);
       formData.append("author2", file2);
+      formData.append("otp", otp);
+      formData.append("email", email);
 
-      const res = await fetch("/api/analyze", {
+      const response = await fetch("/analyze", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
+        body: formData
       });
 
-      const data = await res.json();
-      if (res.ok) {
-        showMessage("analyzeMessage", "Analysis complete.");
-        document.getElementById("report").innerText = data.report;
-        document.getElementById("pcaPlot").src = "data:image/png;base64," + data.pca_plot;
-        document.getElementById("fp1Plot").src = "data:image/png;base64," + data.fp1_plot;
-        document.getElementById("fp2Plot").src = "data:image/png;base64," + data.fp2_plot;
-      } else {
-        showMessage("analyzeMessage", data.error || "Analysis failed", "red");
-        document.getElementById("report").innerText = "";
+      if (!response.ok) {
+        alert("Error analyzing the texts.");
+        return;
       }
+
+      const data = await response.json();
+
+      const verdict = data.accuracy <= 60
+        ? `<div class="notification same">✅ Likely written by the same author (Accuracy: ${data.accuracy}%)</div>`
+        : `<div class="notification different">❌ Likely written by different authors (Accuracy: ${data.accuracy}%)</div>`;
+
+      function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.setFontSize(16);
+        doc.text("Stylometry AI Report", 20, 20);
+        doc.setFontSize(12);
+        doc.text(`Accuracy: ${data.accuracy}%`, 20, 30);
+        doc.text("Verdict:", 20, 40);
+        doc.text(data.accuracy <= 60 ? "✅ Same author" : "❌ Different authors", 40, 40);
+
+        doc.text("Fingerprint Vectors:", 20, 50);
+        doc.setFontSize(10);
+        doc.text("Author 1: " + JSON.stringify(data.fingerprint1), 20, 60, { maxWidth: 170 });
+        doc.text("Author 2: " + JSON.stringify(data.fingerprint2), 20, 80, { maxWidth: 170 });
+
+        const pcaImg = "data:image/png;base64," + data.pca_plot;
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.text("PCA Style Cluster", 20, 20);
+        doc.addImage(pcaImg, "PNG", 15, 30, 180, 100);
+
+        const fp1 = "data:image/png;base64," + data.fp1_plot;
+        doc.addPage();
+        doc.text("Author 1 Fingerprint", 20, 20);
+        doc.addImage(fp1, "PNG", 15, 30, 180, 100);
+
+        const fp2 = "data:image/png;base64," + data.fp2_plot;
+        doc.addPage();
+        doc.text("Author 2 Fingerprint", 20, 20);
+        doc.addImage(fp2, "PNG", 15, 30, 180, 100);
+
+        doc.save("stylometry_report.pdf");
+      }
+
+      document.getElementById("results").innerHTML = `
+        ${verdict}
+        <h3>📊 Accuracy Score: ${data.accuracy}%</h3>
+        <pre>${data.report}</pre>
+
+        <h3>🧬 Feature Fingerprints</h3>
+        <p><b>Author 1:</b> ${JSON.stringify(data.fingerprint1)}</p>
+        <p><b>Author 2:</b> ${JSON.stringify(data.fingerprint2)}</p>
+
+        <button onclick="(${downloadPDF.toString()})()">📄 Download PDF Report</button>
+
+        <h3>📉 PCA Style Cluster</h3>
+        <img class="result-img" src="data:image/png;base64,${data.pca_plot}" />
+
+        <h3>🌀 Fingerprint: Author 1</h3>
+        <img class="result-img" src="data:image/png;base64,${data.fp1_plot}" />
+
+        <h3>🌀 Fingerprint: Author 2</h3>
+        <img class="result-img" src="data:image/png;base64,${data.fp2_plot}" />
+      `;
     }
   </script>
 </body>
