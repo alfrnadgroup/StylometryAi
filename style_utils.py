@@ -6,7 +6,7 @@ from collections import Counter
 from sklearn.decomposition import PCA
 from scipy.spatial import Delaunay
 
-# --- Normalized Modular Function ---
+# --- Normalized Modular Encoding ---
 def normalized_modular(x):
     root = math.sqrt(x)
     frac = root - math.floor(root)
@@ -15,7 +15,7 @@ def normalized_modular(x):
 def encode_norm_mod(message):
     return [normalized_modular(ord(char)) for char in message]
 
-# --- Extract NormMod Signal Features ---
+# --- Signal Features ---
 def extract_signal_features(signal):
     signal = np.array(signal)
     return [
@@ -53,20 +53,20 @@ def extract_stylometric_features(text):
         punctuation_counts['.'] / max(len(text), 1),
     ] + function_word_freq
 
-# --- Combine Features ---
+# --- Combine All Features ---
 def extract_combined_features(text):
     signal = encode_norm_mod(text)
     return extract_signal_features(signal) + extract_stylometric_features(text)
 
-# --- Chunk Text ---
+# --- Chunk Long Text ---
 def chunk_text(text, chunk_size=300):
     return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size) if len(text[i:i+chunk_size]) > 50]
 
-# --- PCA Visualization ---
+# --- PCA Plot ---
 def plot_pca(X, y):
     pca = PCA(n_components=2)
     X_pca = pca.fit_transform(X)
-    
+
     fig, ax = plt.subplots(figsize=(6, 5))
     scatter = ax.scatter(X_pca[:, 0], X_pca[:, 1], c=y, cmap='coolwarm', alpha=0.7, edgecolors='k')
     ax.set_title("PCA: Author Style Clustering")
@@ -75,7 +75,7 @@ def plot_pca(X, y):
     ax.grid(True)
     return fig
 
-# --- Fingerprint Visualization ---
+# --- Fingerprint Plot with Delaunay ---
 def get_fingerprint_plot(X, y, author_label):
     data = X[y == author_label]
     pca = PCA(n_components=2)
@@ -85,7 +85,6 @@ def get_fingerprint_plot(X, y, author_label):
     ax.set_title(f"Fingerprint Pattern - Author {author_label + 1}")
     ax.scatter(coords[:, 0], coords[:, 1], c='blue' if author_label == 0 else 'red', alpha=0.7)
 
-    # Connect nearby points using Delaunay triangulation
     try:
         tri = Delaunay(coords)
         for simplex in tri.simplices:
@@ -94,10 +93,14 @@ def get_fingerprint_plot(X, y, author_label):
                 x1, y1 = coords[simplex[(i + 1) % 3]]
                 ax.plot([x0, x1], [y0, y1], 'k-', lw=0.4, alpha=0.5)
     except:
-        pass  # triangulation may fail on tiny sets
+        pass
 
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_aspect('equal')
     ax.grid(False)
     return fig
+
+# --- Author Fingerprint Vector ---
+def get_author_fingerprint(X):
+    return np.mean(X, axis=0)
