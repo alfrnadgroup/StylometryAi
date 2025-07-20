@@ -139,7 +139,7 @@
     <p>Upload two <code>.txt</code> files to compare their writing styles using AI stylometry.</p>
     <input type="file" id="file1" accept=".txt"><br>
     <input type="file" id="file2" accept=".txt"><br>
-    <button onclick="analyze()">🔍 Analyze</button>
+    <button onclick="analyze()">?? Analyze</button>
   </div>
 
   <div id="results"></div>
@@ -167,8 +167,8 @@
       const data = await response.json();
 
       const verdict = data.accuracy <= 60
-        ? `<div class="notification same">✅ Likely written by the same author (Accuracy: ${data.accuracy}%)</div>`
-        : `<div class="notification different">❌ Likely written by different authors (Accuracy: ${data.accuracy}%)</div>`;
+        ? `<div class="notification same">? Likely written by the same author (Accuracy: ${data.accuracy}%)</div>`
+        : `<div class="notification different">? Likely written by different authors (Accuracy: ${data.accuracy}%)</div>`;
 
       function downloadPDF() {
         const { jsPDF } = window.jspdf;
@@ -179,7 +179,7 @@
         doc.setFontSize(12);
         doc.text(`Accuracy: ${data.accuracy}%`, 20, 30);
         doc.text("Verdict:", 20, 40);
-        doc.text(data.accuracy <= 60 ? "✅ Same author" : "❌ Different authors", 40, 40);
+        doc.text(data.accuracy <= 60 ? "? Same author" : "? Different authors", 40, 40);
 
         doc.text("Fingerprint Vectors:", 20, 50);
         doc.setFontSize(10);
@@ -207,22 +207,22 @@
 
       document.getElementById("results").innerHTML = `
         ${verdict}
-        <h3>📊 Accuracy Score: ${data.accuracy}%</h3>
+        <h3>?? Accuracy Score: ${data.accuracy}%</h3>
         <pre>${data.report}</pre>
 
-        <h3>🧬 Feature Fingerprints</h3>
+        <h3>?? Feature Fingerprints</h3>
         <p><b>Author 1:</b> ${JSON.stringify(data.fingerprint1)}</p>
         <p><b>Author 2:</b> ${JSON.stringify(data.fingerprint2)}</p>
 
-        <button onclick="(${downloadPDF.toString()})()">📄 Download PDF Report</button>
+        <button onclick="(${downloadPDF.toString()})()">?? Download PDF Report</button>
 
-        <h3>📉 PCA Style Cluster</h3>
+        <h3>?? PCA Style Cluster</h3>
         <img class="result-img" src="data:image/png;base64,${data.pca_plot}" />
 
-        <h3>🌀 Fingerprint: Author 1</h3>
+        <h3>?? Fingerprint: Author 1</h3>
         <img class="result-img" src="data:image/png;base64,${data.fp1_plot}" />
 
-        <h3>🌀 Fingerprint: Author 2</h3>
+        <h3>?? Fingerprint: Author 2</h3>
         <img class="result-img" src="data:image/png;base64,${data.fp2_plot}" />
       `;
     }
