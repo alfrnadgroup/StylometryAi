@@ -1,107 +1,106 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import io
-import re
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from collections import Counter
-from itertools import combinations
 import math
+import numpy as np
+import re
+import matplotlib.pyplot as plt
+from collections import Counter
+from sklearn.decomposition import PCA
+from scipy.spatial import Delaunay
 
-def read_text_file(path):
-    with open(path, 'r', encoding='utf-8') as f:
-        return f.read()
+# --- Normalized Modular Encoding ---
+def normalized_modular(x):
+    root = math.sqrt(x)
+    frac = root - math.floor(root)
+    return 2 * (frac - 0.5)
 
-def chunk_text(text, chunk_size=1000):
-    """Split the text into fixed-length chunks"""
-    text = re.sub(r'\s+', ' ', text.strip())
-    return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size) if len(text[i:i+chunk_size]) > 200]
+def encode_norm_mod(message):
+    return [normalized_modular(ord(char)) for char in message]
 
-def extract_combined_features(text):
-    # Very basic stylometric features
-    features = []
+# --- Signal Features ---
+def extract_signal_features(signal):
+    signal = np.array(signal)
+    return [
+        np.mean(signal),
+        np.std(signal),
+        np.min(signal),
+        np.max(signal),
+        np.median(signal),
+        np.percentile(signal, 25),
+        np.percentile(signal, 75),
+        np.sum(np.abs(np.diff(signal))),  # signal volatility
+    ]
+
+# --- Stylometric Features ---
+FUNCTION_WORDS = {"the", "and", "of", "to", "is", "in", "it", "that", "i", "you", "a", "with", "for", "on"}
+
+def extract_stylometric_features(text):
     words = re.findall(r'\b\w+\b', text.lower())
-    sentences = re.split(r'[.!?]+', text)
-    char_count = len(text)
+    word_lengths = [len(w) for w in words]
+    sentences = re.split(r'[.!?]', text)
+    sentence_lengths = [len(s.split()) for s in sentences if len(s.strip()) > 1]
     word_count = len(words)
-    sentence_count = len(sentences)
-    
-    avg_word_length = np.mean([len(w) for w in words]) if words else 0
-    avg_sentence_length = word_count / sentence_count if sentence_count else 0
-    lexical_diversity = len(set(words)) / word_count if word_count else 0
+    unique_word_count = len(set(words))
+    punctuation_counts = Counter(re.findall(r'[.,;?!]', text))
+    function_word_freq = [words.count(w) / max(word_count, 1) for w in FUNCTION_WORDS]
 
-    # Punctuation frequency
-    puncts = ['.', ',', ';', ':', '!', '?', '"', "'", '-', '(', ')']
-    punct_freqs = [text.count(p) / char_count for p in puncts]
+    return [
+        np.mean(word_lengths),
+        np.std(word_lengths),
+        unique_word_count / max(word_count, 1),
+        np.mean(sentence_lengths) if sentence_lengths else 0,
+        punctuation_counts[','] / max(len(text), 1),
+        punctuation_counts[';'] / max(len(text), 1),
+        punctuation_counts['?'] / max(len(text), 1),
+        punctuation_counts['.'] / max(len(text), 1),
+    ] + function_word_freq
 
-    features.extend([
-        avg_word_length,
-        avg_sentence_length,
-        lexical_diversity
-    ])
-    features.extend(punct_freqs)
+# --- Combine All Features ---
+def extract_combined_features(text):
+    signal = encode_norm_mod(text)
+    return extract_signal_features(signal) + extract_stylometric_features(text)
 
-    return features
+# --- Chunk Long Text ---
+def chunk_text(text, chunk_size=300):
+    return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size) if len(text[i:i+chunk_size]) > 50]
 
+# --- PCA Plot ---
 def plot_pca(X, y):
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
     pca = PCA(n_components=2)
-    X_pca = pca.fit_transform(X_scaled)
+    X_pca = pca.fit_transform(X)
 
-    plt.figure(figsize=(6, 5))
-    for label in np.unique(y):
-        plt.scatter(X_pca[y == label, 0], X_pca[y == label, 1],
-                    label=f"Author {label + 1}", alpha=0.7, s=80)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    scatter = ax.scatter(X_pca[:, 0], X_pca[:, 1], c=y, cmap='coolwarm', alpha=0.7, edgecolors='k')
+    ax.set_title("PCA: Author Style Clustering")
+    ax.set_xlabel("Principal Component 1")
+    ax.set_ylabel("Principal Component 2")
+    ax.grid(True)
+    return fig
 
-    plt.xlabel('PCA 1')
-    plt.ylabel('PCA 2')
-    plt.title('PCA Stylometric Cluster')
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
+# --- Fingerprint Plot with Delaunay ---
+def get_fingerprint_plot(X, y, author_label):
+    data = X[y == author_label]
+    pca = PCA(n_components=2)
+    coords = pca.fit_transform(data)
 
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-    plt.close()
-    return buf
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.set_title(f"Fingerprint Pattern - Author {author_label + 1}")
+    ax.scatter(coords[:, 0], coords[:, 1], c='blue' if author_label == 0 else 'red', alpha=0.7)
 
-def plot_fingerprint(X_class):
-    X_class = np.array(X_class)
-    if len(X_class) > 1:
-        avg_features = np.mean(X_class, axis=0)
-    else:
-        avg_features = X_class[0]
+    try:
+        tri = Delaunay(coords)
+        for simplex in tri.simplices:
+            for i in range(3):
+                x0, y0 = coords[simplex[i]]
+                x1, y1 = coords[simplex[(i + 1) % 3]]
+                ax.plot([x0, x1], [y0, y1], 'k-', lw=0.4, alpha=0.5)
+    except:
+        pass
 
-    num_points = len(avg_features)
-    angles = np.linspace(0, 2 * np.pi, num_points, endpoint=False)
-    radius = avg_features / np.max(avg_features)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_aspect('equal')
+    ax.grid(False)
+    return fig
 
-    x_outer = radius * np.cos(angles)
-    y_outer = radius * np.sin(angles)
-
-    plt.figure(figsize=(6, 6))
-    plt.plot(np.append(x_outer, x_outer[0]), np.append(y_outer, y_outer[0]),
-             c='darkblue', lw=2, alpha=0.8)
-
-    for i, j in combinations(range(num_points), 2):
-        dist = np.linalg.norm([x_outer[i] - x_outer[j], y_outer[i] - y_outer[j]])
-        if dist < 1.5:  # Connect nearby points
-            plt.plot([x_outer[i], x_outer[j]], [y_outer[i], y_outer[j]], c='skyblue', lw=0.5, alpha=0.5)
-
-    plt.scatter(x_outer, y_outer, c='darkred', s=40)
-
-    for i in range(num_points):
-        plt.text(x_outer[i]*1.1, y_outer[i]*1.1, f"F{i+1}", fontsize=8, ha='center')
-
-    plt.title('Stylometric Fingerprint')
-    plt.axis('off')
-    plt.tight_layout()
-
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-    plt.close()
-    return buf
+# --- Author Fingerprint Vector ---
+def get_author_fingerprint(X):
+    return np.mean(X, axis=0)
