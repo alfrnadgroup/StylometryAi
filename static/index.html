@@ -1,122 +1,231 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Stylometry Authorship Analyzer</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stylometry AI</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 2em; max-width: 800px; margin: auto; background: #f4f4f4; }
-    h1 { text-align: center; }
-    input, button { padding: 10px; margin: 5px 0; width: 100%; }
-    label { font-weight: bold; }
-    .hidden { display: none; }
-    .section { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 0 10px #ccc; }
-    img { max-width: 100%; margin-top: 10px; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      background: linear-gradient(to right, #f0f2f5, #c9d6ff);
+      color: #333;
+      padding-top: 150px; /* Reserve space for fixed header */
+    }
+
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      background-color: #ffffffee;
+      padding: 1rem 2rem;
+      border-bottom: 2px solid #ddd;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      z-index: 999;
+    }
+
+    header img {
+      height: 140px;
+      margin-right: 20px;
+    }
+
+    .title-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .title-group h1 {
+      font-size: 2.5rem;
+      margin: 0;
+      color: #2c3e50;
+      background: #ecf0f1;
+      padding: 5px 10px;
+      border-radius: 8px;
+      box-shadow: inset 0 0 4px #bbb;
+    }
+
+    .title-group p {
+      margin: 8px 0 0;
+      font-size: 1.2rem;
+      text-align: center;
+      background: #ecf0f1;
+      padding: 4px 10px;
+      border-radius: 6px;
+      box-shadow: inset 0 0 4px #bbb;
+    }
+
+    .upload-card {
+      max-width: 600px;
+      margin: auto;
+      background: #ffffffcc;
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    input[type="file"], button {
+      margin: 1em 0;
+      font-size: 1rem;
+    }
+
+    button {
+      background: #3498db;
+      color: white;
+      padding: 0.6em 1.5em;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #2980b9;
+    }
+
+    #results {
+      margin: 3rem auto;
+      max-width: 800px;
+    }
+
+    img.result-img {
+      max-width: 100%;
+      margin-top: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    pre {
+      background: #ecf0f1;
+      padding: 1rem;
+      border-radius: 10px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    .notification {
+      font-weight: bold;
+      padding: 1em;
+      border-radius: 10px;
+      margin: 1em 0;
+    }
+
+    .same {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .different {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
   </style>
 </head>
 <body>
 
-  <h1>Stylometry Authorship Analyzer</h1>
-
-  <div class="section" id="otp-section">
-    <h2>Step 1: Email Verification</h2>
-    <label for="email">Email:</label>
-    <input type="email" id="email" required>
-    <button onclick="sendOTP()">Send OTP</button>
-    <div id="otp-div" class="hidden">
-      <label for="otp">Enter OTP:</label>
-      <input type="text" id="otp">
-      <button onclick="verifyOTP()">Verify OTP</button>
+  <header>
+    <img src="logo.png" alt="Logo" />
+    <div class="title-group">
+      <h1>Stylometry AI</h1>
+      <p>Author Fingerprint</p>
     </div>
+  </header>
+
+  <div class="upload-card">
+    <p>Upload two <code>.txt</code> files to compare their writing styles using AI stylometry.</p>
+    <input type="file" id="file1" accept=".txt"><br>
+    <input type="file" id="file2" accept=".txt"><br>
+    <button onclick="analyze()">🔍 Analyze</button>
   </div>
 
-  <div class="section hidden" id="upload-section">
-    <h2>Step 2: Upload Author Texts</h2>
-    <label for="author1">Author 1 File:</label>
-    <input type="file" id="author1">
-    <label for="author2">Author 2 File:</label>
-    <input type="file" id="author2">
-    <button onclick="analyze()">Analyze</button>
-  </div>
-
-  <div class="section hidden" id="result-section">
-    <h2>Results</h2>
-    <p><strong>Accuracy:</strong> <span id="accuracy"></span>%</p>
-    <pre id="report"></pre>
-    <h3>Visualizations</h3>
-    <h4>PCA Plot</h4>
-    <img id="pca-img">
-    <h4>Fingerprint: Author 1</h4>
-    <img id="fp1-img">
-    <h4>Fingerprint: Author 2</h4>
-    <img id="fp2-img">
-  </div>
+  <div id="results"></div>
 
   <script>
-    let token = null;
-
-    async function sendOTP() {
-      const email = document.getElementById("email").value;
-      const res = await fetch("/api/request-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      });
-      const data = await res.json();
-      alert(data.message || data.error);
-      if (res.ok) {
-        document.getElementById("otp-div").classList.remove("hidden");
-      }
-    }
-
-    async function verifyOTP() {
-      const email = document.getElementById("email").value;
-      const otp = document.getElementById("otp").value;
-      const res = await fetch("/api/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp })
-      });
-      const data = await res.json();
-      alert(data.message || data.error);
-      if (res.ok) {
-        token = data.token;
-        document.getElementById("upload-section").classList.remove("hidden");
-      }
-    }
-
     async function analyze() {
-      const file1 = document.getElementById("author1").files[0];
-      const file2 = document.getElementById("author2").files[0];
-      if (!file1 || !file2) {
-        alert("Please upload both files.");
-        return;
-      }
+      const file1 = document.getElementById("file1").files[0];
+      const file2 = document.getElementById("file2").files[0];
+      if (!file1 || !file2) return alert("Please upload both files.");
 
       const formData = new FormData();
       formData.append("author1", file1);
       formData.append("author2", file2);
 
-      const res = await fetch("/api/analyze", {
+      const response = await fetch("/analyze", {
         method: "POST",
-        headers: { "Authorization": "Bearer " + token },
         body: formData
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || "Analysis failed.");
+      if (!response.ok) {
+        alert("Error analyzing the texts.");
         return;
       }
 
-      document.getElementById("result-section").classList.remove("hidden");
-      document.getElementById("accuracy").textContent = data.accuracy;
-      document.getElementById("report").textContent = data.report;
-      document.getElementById("pca-img").src = "data:image/png;base64," + data.pca_plot;
-      document.getElementById("fp1-img").src = "data:image/png;base64," + data.fp1_plot;
-      document.getElementById("fp2-img").src = "data:image/png;base64," + data.fp2_plot;
+      const data = await response.json();
+
+      const verdict = data.accuracy <= 60
+        ? `<div class="notification same">✅ Likely written by the same author (Accuracy: ${data.accuracy}%)</div>`
+        : `<div class="notification different">❌ Likely written by different authors (Accuracy: ${data.accuracy}%)</div>`;
+
+      function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.setFontSize(16);
+        doc.text("Stylometry AI Report", 20, 20);
+        doc.setFontSize(12);
+        doc.text(`Accuracy: ${data.accuracy}%`, 20, 30);
+        doc.text("Verdict:", 20, 40);
+        doc.text(data.accuracy <= 60 ? "✅ Same author" : "❌ Different authors", 40, 40);
+
+        doc.text("Fingerprint Vectors:", 20, 50);
+        doc.setFontSize(10);
+        doc.text("Author 1: " + JSON.stringify(data.fingerprint1), 20, 60, { maxWidth: 170 });
+        doc.text("Author 2: " + JSON.stringify(data.fingerprint2), 20, 80, { maxWidth: 170 });
+
+        const pcaImg = "data:image/png;base64," + data.pca_plot;
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.text("PCA Style Cluster", 20, 20);
+        doc.addImage(pcaImg, "PNG", 15, 30, 180, 100);
+
+        const fp1 = "data:image/png;base64," + data.fp1_plot;
+        doc.addPage();
+        doc.text("Author 1 Fingerprint", 20, 20);
+        doc.addImage(fp1, "PNG", 15, 30, 180, 100);
+
+        const fp2 = "data:image/png;base64," + data.fp2_plot;
+        doc.addPage();
+        doc.text("Author 2 Fingerprint", 20, 20);
+        doc.addImage(fp2, "PNG", 15, 30, 180, 100);
+
+        doc.save("stylometry_report.pdf");
+      }
+
+      document.getElementById("results").innerHTML = `
+        ${verdict}
+        <h3>📊 Accuracy Score: ${data.accuracy}%</h3>
+        <pre>${data.report}</pre>
+
+        <h3>🧬 Feature Fingerprints</h3>
+        <p><b>Author 1:</b> ${JSON.stringify(data.fingerprint1)}</p>
+        <p><b>Author 2:</b> ${JSON.stringify(data.fingerprint2)}</p>
+
+        <button onclick="(${downloadPDF.toString()})()">📄 Download PDF Report</button>
+
+        <h3>📉 PCA Style Cluster</h3>
+        <img class="result-img" src="data:image/png;base64,${data.pca_plot}" />
+
+        <h3>🌀 Fingerprint: Author 1</h3>
+        <img class="result-img" src="data:image/png;base64,${data.fp1_plot}" />
+
+        <h3>🌀 Fingerprint: Author 2</h3>
+        <img class="result-img" src="data:image/png;base64,${data.fp2_plot}" />
+      `;
     }
   </script>
-
 </body>
 </html>
