@@ -1,10 +1,12 @@
 import math
-import numpy as np
 import re
-from collections import Counter
+import numpy as np
 import matplotlib.pyplot as plt
+from io import BytesIO
+from collections import Counter
 from sklearn.decomposition import PCA
-from scipy.spatial import distance_matrix
+from scipy.spatial import ConvexHull
+import base64
 
 # --- Normalized Modular Function ---
 def normalized_modular(x):
@@ -16,11 +18,10 @@ def encode_norm_mod(message):
     return [normalized_modular(ord(char)) for char in message]
 
 # --- Read Text from File ---
-def read_text_file(filepath):
-    with open(filepath, 'r', encoding='utf-8') as file:
-        return file.read()
+def read_text_file(file_storage):
+    return file_storage.read().decode('utf-8', errors='ignore')
 
-# --- Extract Signal Features ---
+# --- Signal Features ---
 def extract_signal_features(signal):
     signal = np.array(signal)
     return [
@@ -31,7 +32,7 @@ def extract_signal_features(signal):
         np.median(signal),
         np.percentile(signal, 25),
         np.percentile(signal, 75),
-        np.sum(np.abs(np.diff(signal))),
+        np.sum(np.abs(np.diff(signal))),  # signal volatility
     ]
 
 # --- Stylometric Features ---
@@ -63,38 +64,52 @@ def extract_combined_features(text):
     signal = encode_norm_mod(text)
     return extract_signal_features(signal) + extract_stylometric_features(text)
 
-# --- Chunk Text ---
+# --- Chunking ---
 def chunk_text(text, chunk_size=300):
     return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size) if len(text[i:i+chunk_size]) > 50]
 
-# --- PCA Visualization ---
-def plot_pca_clusters(X, y):
+# --- PCA Plot ---
+def plot_pca(X, y):
     pca = PCA(n_components=2)
     X_pca = pca.fit_transform(X)
-    fig, ax = plt.subplots(figsize=(7, 6))
-    scatter = ax.scatter(X_pca[:, 0], X_pca[:, 1], c=y, cmap='coolwarm', edgecolors='k', alpha=0.7)
-    ax.set_title("PCA Style Clusters")
-    ax.set_xlabel("Component 1")
-    ax.set_ylabel("Component 2")
-    ax.grid(True)
-    return fig
+    plt.figure(figsize=(6, 5))
+    plt.scatter(X_pca[:, 0], X_pca[:, 1], c=y, cmap='coolwarm', s=40, alpha=0.7, edgecolors='k')
+    plt.title("PCA: Author Style Clustering")
+    plt.xlabel("PC 1")
+    plt.ylabel("PC 2")
+    plt.grid(True)
+    buf = BytesIO()
+    plt.tight_layout()
+    plt.savefig(buf, format='png')
+    plt.close()
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode('utf-8')
 
-# --- Fingerprint Visualization ---
-def plot_fingerprint(vectors, title="Author"):
-    pca = PCA(n_components=2)
-    X_pca = pca.fit_transform(vectors)
-    fig, ax = plt.subplots(figsize=(5, 5))
+# --- Fingerprint Plot ---
+def plot_fingerprint(points, title="Author Fingerprint"):
+    plt.figure(figsize=(5, 5))
+    plt.scatter(points[:, 0], points[:, 1], c='dodgerblue', s=40, alpha=0.6, edgecolor='k')
 
-    ax.scatter(X_pca[:, 0], X_pca[:, 1], color='teal', s=30)
+    # Convex hull for outer boundary
+    if len(points) >= 3:
+        hull = ConvexHull(points)
+        for simplex in hull.simplices:
+            plt.plot(points[simplex, 0], points[simplex, 1], 'red', lw=2)
 
-    # Connect all points to nearest neighbors (simulate fingerprint lines)
-    dist_mat = distance_matrix(X_pca, X_pca)
-    np.fill_diagonal(dist_mat, np.inf)
-    for i in range(len(X_pca)):
-        nearest_indices = np.argsort(dist_mat[i])[:3]  # Connect to 3 nearest
-        for j in nearest_indices:
-            ax.plot([X_pca[i, 0], X_pca[j, 0]], [X_pca[i, 1], X_pca[j, 1]], 'lightgray', linewidth=1)
+    # Connect nearby inner points for fingerprint feel
+    for i in range(len(points)):
+        for j in range(i + 1, len(points)):
+            dist = np.linalg.norm(points[i] - points[j])
+            if dist < np.percentile(np.linalg.norm(points - points[i], axis=1), 30):
+                plt.plot([points[i, 0], points[j, 0]],
+                         [points[i, 1], points[j, 1]],
+                         color='lightgray', linewidth=0.6)
 
-    ax.set_title(f"{title}'s Stylometric Fingerprint")
-    ax.axis('off')
-    return fig
+    plt.title(title)
+    plt.axis('off')
+    buf = BytesIO()
+    plt.tight_layout()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    plt.close()
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode('utf-8')
