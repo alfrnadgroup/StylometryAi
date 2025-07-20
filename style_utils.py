@@ -1,10 +1,10 @@
 import math
 import numpy as np
 import re
-import matplotlib.pyplot as plt
 from collections import Counter
+import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
-from scipy.spatial import Delaunay
+from scipy.spatial import distance_matrix
 
 # --- Normalized Modular Function ---
 def normalized_modular(x):
@@ -15,7 +15,12 @@ def normalized_modular(x):
 def encode_norm_mod(message):
     return [normalized_modular(ord(char)) for char in message]
 
-# --- Extract NormMod Signal Features ---
+# --- Read Text from File ---
+def read_text_file(filepath):
+    with open(filepath, 'r', encoding='utf-8') as file:
+        return file.read()
+
+# --- Extract Signal Features ---
 def extract_signal_features(signal):
     signal = np.array(signal)
     return [
@@ -26,7 +31,7 @@ def extract_signal_features(signal):
         np.median(signal),
         np.percentile(signal, 25),
         np.percentile(signal, 75),
-        np.sum(np.abs(np.diff(signal))),  # signal volatility
+        np.sum(np.abs(np.diff(signal))),
     ]
 
 # --- Stylometric Features ---
@@ -63,41 +68,33 @@ def chunk_text(text, chunk_size=300):
     return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size) if len(text[i:i+chunk_size]) > 50]
 
 # --- PCA Visualization ---
-def plot_pca(X, y):
+def plot_pca_clusters(X, y):
     pca = PCA(n_components=2)
     X_pca = pca.fit_transform(X)
-    
-    fig, ax = plt.subplots(figsize=(6, 5))
-    scatter = ax.scatter(X_pca[:, 0], X_pca[:, 1], c=y, cmap='coolwarm', alpha=0.7, edgecolors='k')
-    ax.set_title("PCA: Author Style Clustering")
-    ax.set_xlabel("Principal Component 1")
-    ax.set_ylabel("Principal Component 2")
+    fig, ax = plt.subplots(figsize=(7, 6))
+    scatter = ax.scatter(X_pca[:, 0], X_pca[:, 1], c=y, cmap='coolwarm', edgecolors='k', alpha=0.7)
+    ax.set_title("PCA Style Clusters")
+    ax.set_xlabel("Component 1")
+    ax.set_ylabel("Component 2")
     ax.grid(True)
     return fig
 
 # --- Fingerprint Visualization ---
-def get_fingerprint_plot(X, y, author_label):
-    data = X[y == author_label]
+def plot_fingerprint(vectors, title="Author"):
     pca = PCA(n_components=2)
-    coords = pca.fit_transform(data)
+    X_pca = pca.fit_transform(vectors)
+    fig, ax = plt.subplots(figsize=(5, 5))
 
-    fig, ax = plt.subplots(figsize=(6, 6))
-    ax.set_title(f"Fingerprint Pattern - Author {author_label + 1}")
-    ax.scatter(coords[:, 0], coords[:, 1], c='blue' if author_label == 0 else 'red', alpha=0.7)
+    ax.scatter(X_pca[:, 0], X_pca[:, 1], color='teal', s=30)
 
-    # Connect nearby points using Delaunay triangulation
-    try:
-        tri = Delaunay(coords)
-        for simplex in tri.simplices:
-            for i in range(3):
-                x0, y0 = coords[simplex[i]]
-                x1, y1 = coords[simplex[(i + 1) % 3]]
-                ax.plot([x0, x1], [y0, y1], 'k-', lw=0.4, alpha=0.5)
-    except:
-        pass  # triangulation may fail on tiny sets
+    # Connect all points to nearest neighbors (simulate fingerprint lines)
+    dist_mat = distance_matrix(X_pca, X_pca)
+    np.fill_diagonal(dist_mat, np.inf)
+    for i in range(len(X_pca)):
+        nearest_indices = np.argsort(dist_mat[i])[:3]  # Connect to 3 nearest
+        for j in nearest_indices:
+            ax.plot([X_pca[i, 0], X_pca[j, 0]], [X_pca[i, 1], X_pca[j, 1]], 'lightgray', linewidth=1)
 
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_aspect('equal')
-    ax.grid(False)
+    ax.set_title(f"{title}'s Stylometric Fingerprint")
+    ax.axis('off')
     return fig
